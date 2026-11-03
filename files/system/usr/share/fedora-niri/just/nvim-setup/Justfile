@@ -1,0 +1,2 @@
+nvim-setup *args:
+    exec /usr/libexec/fedora-niri-config-setup nvim {{args}}

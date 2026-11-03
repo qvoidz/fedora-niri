@@ -1,0 +1,2 @@
+fonts-setup *args:
+    exec /usr/libexec/fedora-niri-config-setup fonts {{args}}

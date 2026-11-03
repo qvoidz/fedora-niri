@@ -1,187 +1,76 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-module="${1:?missing module}"
-shift
-home="${HOME:?HOME is not set}"
+module=${1:?missing module}; shift
 yes=false
-while (($#)); do
-  case "$1" in
-    -y|--yes) yes=true ;;
-    *) echo "未知参数：$1" >&2; exit 2 ;;
-  esac
-  shift
-done
+while (($#)); do case "$1" in -y|--yes) yes=true ;; *) echo "未知参数：$1" >&2; exit 2 ;; esac; shift; done
+home=${HOME:?HOME is not set}
+state="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/$module"
+mkdir -p "$(dirname "$state")"
 
-state_root="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
-backup="$state_root/backup"
-manifest="$state_root/manifest"
-in_install=false
-
-paths_for() {
-  case "$module" in
-    kitty|fonts) printf '%s\n' '.config/kitty/kitty.conf' ;;
-    fcitx)
-      printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.config/fcitx5/profile' '.local/share/fcitx5/rime'
-      ;;
-    nvim) printf '%s\n' '.config/nvim' ;;
-    dms)
-      # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-      printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
-      ;;
-    *) echo "Unknown setup module: $module" >&2; exit 2 ;;
-  esac
-}
-
-snapshot() {
-  mkdir -p "$backup/original"
-  : > "$manifest"
-  while IFS= read -r rel; do
-    if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
-      printf 'present\t%s\n' "$rel" >> "$manifest"
-      mkdir -p "$backup/original/$(dirname "$rel")"
-      cp -a -- "$home/$rel" "$backup/original/$rel"
-    else
-      printf 'absent\t%s\n' "$rel" >> "$manifest"
-    fi
-  done < <(paths_for)
-}
-
-restore() {
-  [[ -f "$manifest" ]] || return 0
-  while IFS=$'\t' read -r status rel; do
-    rm -rf -- "$home/$rel"
-    if [[ "$status" == present ]]; then
-      mkdir -p "$home/$(dirname "$rel")"
-      cp -a -- "$backup/original/$rel" "$home/$rel"
-    fi
-  done < "$manifest"
-}
-
-rollback_install() {
-  local status=$?
-  if [[ "$in_install" == true ]]; then
-    trap - EXIT INT TERM HUP
-    echo "安装未正常完成，正在恢复安装前配置……" >&2
-    restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2
-    rm -f "$state_root/installed" "$state_root/installing"
-    [[ -f "$manifest" ]] && touch "$state_root/failed"
-  fi
-  exit "$status"
-}
-
-confirm_action() {
+ask() {
   local prompt="$1" answer
   [[ "$yes" == true ]] && return 0
   printf '%s [Y/n] ' "$prompt"
   IFS= read -r answer || answer=""
-  case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+  [[ "${answer,,}" != n && "${answer,,}" != no ]]
 }
 
-install_module() {
-  if [[ -f "$state_root/installed" ]]; then
-    echo "该模块已安装。"
-    return 0
-  fi
-  if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-    echo "发现上次未完成的安装，先恢复原始配置并清理旧状态。"
-    restore
-    rm -rf "$state_root"
-  elif [[ -e "$state_root" ]]; then
-    echo "发现不完整的旧状态目录，正在恢复并清理。"
-    restore
-    rm -rf "$state_root"
-  fi
-
-  mkdir -p "$state_root"
-  snapshot
-  touch "$state_root/installing"
-  in_install=true
-  trap rollback_install EXIT INT TERM HUP
-  do_install
-  touch "$state_root/installed"
-  rm -f "$state_root/installing" "$state_root/failed"
-  in_install=false
-  trap - EXIT INT TERM HUP
-  echo "安装完成。"
+kitty_file="$home/.config/kitty/kitty.conf"
+kitty_state="$state/kitty-added"
+kitty_add() {
+  local line="$1"
+  grep -Fqx -- "$line" "$kitty_file" && return 0
+  printf '%s\n' "$line" >> "$kitty_file"
+  printf '%s\n' "$line" >> "$kitty_state"
+}
+kitty_install() {
+  mkdir -p "$(dirname "$kitty_file")"
+  touch "$kitty_file"
+  : > "$kitty_state"
+  kitty_add 'shell /usr/bin/fish'
+  kitty_add 'background_opacity 0.8'
+}
+kitty_uninstall() {
+  [[ -f "$kitty_state" ]] || { echo "没有 Kitty 配置记录。"; return 1; }
+  local tmp; tmp="$(mktemp)"
+  cp -a "$kitty_file" "$tmp"
+  while IFS= read -r line; do
+    # Remove only an exact line that this module added; preserve changed lines and user content.
+    awk -v target="$line" 'BEGIN{removed=0} $0==target && !removed {removed=1; next} {print}' "$tmp" > "$tmp.next"
+    mv "$tmp.next" "$tmp"
+  done < "$kitty_state"
+  cat "$tmp" > "$kitty_file"
+  rm -f "$tmp" "$kitty_state"
+  rmdir "$state" 2>/dev/null || true
+  echo "已移除 Kitty 模块添加且仍保持原样的配置项。"
 }
 
-uninstall_module() {
-  if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
-    echo "没有找到该模块的安装记录。"
-    return 1
-  fi
-  if [[ -f "$state_root/installed" && "$yes" != true ]]; then
-    confirm_action "确认卸载 $module 并恢复安装前配置？" || { echo "已取消。"; return 0; }
-  fi
-  if [[ "$module" == dms ]]; then
-    systemctl --user disable --now dms.service 2>/dev/null || true
-  elif [[ "$module" == fcitx ]]; then
-    fcitx5-remote -e 2>/dev/null || true
-  fi
-  restore
-  [[ "$module" == dms ]] && systemctl --user daemon-reload 2>/dev/null || true
-  rm -rf -- "$state_root"
-  echo "已恢复安装前配置。"
-}
+fcitx_install() {
+  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+  command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
+  command -v fcitx5-remote >/dev/null || { echo "未找到 fcitx5-remote。" >&2; return 1; }
+  rpm -q fcitx5-rime >/dev/null 2>&1 || { echo "缺少 fcitx5-rime 引擎软件包；请先安装系统包。" >&2; return 1; }
 
-replace_kitty_block() {
-  local font="${1:-}"
-  local conf="$home/.config/kitty/kitty.conf"
-  mkdir -p "$(dirname "$conf")"
-  touch "$conf"
-  local tmp
-  tmp="$(mktemp)"
-  awk '
-    /^# BEGIN FEDORA-NIRI MANAGED BLOCK$/ {skip=1; next}
-    /^# END FEDORA-NIRI MANAGED BLOCK$/ {skip=0; next}
-    !skip {print}
-  ' "$conf" > "$tmp"
-  {
-    cat "$tmp"
-    printf '\n# BEGIN FEDORA-NIRI MANAGED BLOCK\n'
-    [[ -n "$font" ]] && printf 'font_family %s\n' "$font"
-    [[ "$module" == kitty ]] && printf 'shell /usr/bin/fish\nbackground_opacity 0.8\n'
-    printf '# END FEDORA-NIRI MANAGED BLOCK\n'
-  } > "$conf"
-  rm -f "$tmp"
-}
+  local envfile="$home/.config/environment.d/90-fcitx5.conf"
+  local desktop="$home/.config/autostart/org.fcitx.Fcitx5.desktop"
+  local profile="$home/.config/fcitx5/profile"
+  local rime="$home/.local/share/fcitx5/rime"
+  mkdir -p "$(dirname "$envfile")" "$(dirname "$desktop")" "$(dirname "$profile")" "$(dirname "$rime")"
 
-do_install() {
-  case "$module" in
-    kitty) replace_kitty_block ;;
-    fonts)
-      command -v fc-list >/dev/null || { echo "缺少 fc-list。" >&2; return 1; }
-      mapfile -t choices < <(fc-list : family | sed 's/,.*//' | sed 's/^ *//;s/ *$//' | sort -u)
-      (("${#choices[@]}" > 0)) || { echo "没有检测到可用字体。" >&2; return 1; }
-      local selected=""
-      if [[ "$yes" == true ]]; then
-        for candidate in "JetBrainsMono Nerd Font" "CascadiaCode Nerd Font" "JetBrains Mono" "Cascadia Code"; do
-          for available in "${choices[@]}"; do
-            [[ "$available" == "$candidate" ]] && { selected="$available"; break 2; }
-          done
-        done
-        [[ -n "$selected" ]] || selected="${choices[0]}"
-      else
-        echo "选择 Kitty 使用的字体："
-        select selected in "${choices[@]}"; do
-          [[ -n "${selected:-}" ]] && break
-          echo "无效选择，请重试。"
-        done
-      fi
-      replace_kitty_block "$selected"
-      ;;
-    fcitx)
-      command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
-      command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
-      command -v fcitx5-remote >/dev/null || { echo "未找到 fcitx5-remote。" >&2; return 1; }
-      mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.config/fcitx5" "$home/.local/share/fcitx5"
-      cat > "$home/.config/environment.d/90-fcitx5.conf" <<'EOF'
+  # Save exact originals once; do not overwrite a previous transaction.
+  mkdir -p "$state/original"
+  for f in "$envfile" "$desktop" "$profile"; do
+    rel="${f#"$home"/}"
+    if [[ -e "$f" ]]; then cp -a "$f" "$state/original/$rel"; printf 'present\t%s\n' "$rel" >> "$state/manifest"
+    else printf 'absent\t%s\n' "$rel" >> "$state/manifest"; fi
+  done
+  cat > "$envfile" <<'EOF'
 XMODIFIERS=@im=fcitx
 QT_IM_MODULE=fcitx
 SDL_IM_MODULE=fcitx
 EOF
-      cat > "$home/.config/autostart/org.fcitx.Fcitx5.desktop" <<'EOF'
+  cat > "$desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Fcitx 5
@@ -190,17 +79,15 @@ Icon=fcitx
 Terminal=false
 Categories=System;
 EOF
-      if [[ ! -d "$home/.local/share/fcitx5/rime" ]]; then
-        tmp="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")"
-        if ! git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then
-          rm -rf "$tmp"
-          return 1
-        fi
-        mv "$tmp/rime" "$home/.local/share/fcitx5/rime"
-        rmdir "$tmp"
-      fi
-      # Configure the Fcitx5 input-method group explicitly so Rime is selectable.
-      cat > "$home/.config/fcitx5/profile" <<'EOF'
+  if [[ ! -d "$rime" ]]; then
+    local tmp; tmp="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")"
+    if ! git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then rm -rf "$tmp"; return 1; fi
+    mv "$tmp/rime" "$rime"; rmdir "$tmp"
+    touch "$state/rime-created"
+  fi
+
+  # Fcitx5 profile format: explicitly put Rime in the Default group.
+  cat > "$profile" <<'EOF'
 [Groups/0]
 Name=Default
 DefaultIM=keyboard-us
@@ -214,44 +101,77 @@ Name=rime
 
 [GroupOrder]
 0=Default
-
-[Groups]
-0=Default
 EOF
-      # Start/restart in the background; never block the setup task on a foreground daemon.
-      if pgrep -u "$(id -u)" -x fcitx5 >/dev/null 2>&1; then
-        fcitx5-remote -r >/dev/null 2>&1 || true
-      else
-        nohup fcitx5 -d --replace >/dev/null 2>&1 </dev/null &
-      fi
-      echo "已部署 Rime 并将 rime 加入 Fcitx5 输入法组；会话环境变量需重新登录后生效。"
-      ;;
+  # Start detached; waiting for a daemon in the foreground caused the old task to hang.
+  if ! pgrep -u "$(id -u)" -x fcitx5 >/dev/null 2>&1; then
+    nohup fcitx5 -d --replace >/dev/null 2>&1 </dev/null &
+  else
+    fcitx5-remote -r >/dev/null 2>&1 || true
+  fi
+  sleep 1
+  pgrep -u "$(id -u)" -x fcitx5 >/dev/null || { echo "Fcitx5 启动失败，请检查 journalctl --user。" >&2; return 1; }
+  echo "Rime 已写入 Fcitx5 Default 输入法组。请打开 Fcitx5 配置确认 Rime，并重新登录使环境变量生效。"
+}
+fcitx_uninstall() {
+  [[ -f "$state/manifest" ]] || { echo "没有 Fcitx5 安装记录。"; return 1; }
+  while IFS=$'\t' read -r status rel; do
+    target="$home/$rel"
+    if [[ -e "$target" ]]; then rm -f "$target"; fi
+    if [[ "$status" == present && -e "$state/original/$rel" ]]; then
+      mkdir -p "$(dirname "$target")"; cp -a "$state/original/$rel" "$target"
+    fi
+  done < "$state/manifest"
+  if [[ -f "$state/rime-created" ]]; then rm -rf "$home/.local/share/fcitx5/rime"; fi
+  rm -rf "$state"
+  echo "已恢复 Fcitx5 安装前配置。"
+}
+
+simple_install() {
+  if [[ -e "$state/installed" ]]; then echo "该模块已安装。"; return 0; fi
+  mkdir -p "$state"
+  case "$module" in
+    kitty) kitty_install ;;
+    fcitx) : > "$state/manifest"; fcitx_install ;;
     nvim)
-      command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+      [[ ! -e "$home/.config/nvim" ]] || { echo "~/.config/nvim 已存在，拒绝覆盖。" >&2; return 1; }
       git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
       rm -rf "$home/.config/nvim/.git"
+      touch "$state/nvim-created"
       ;;
     dms)
       command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
       duxinstall -c niri -t kitty -y
       ;;
+    fonts) echo "字体配置请使用 fonts-setup 模块。" ;;
+    *) echo "未知模块：$module" >&2; return 2 ;;
+  esac
+  touch "$state/installed"
+  echo "安装完成。"
+}
+simple_uninstall() {
+  case "$module" in
+    kitty) kitty_uninstall; return ;;
+    fcitx) fcitx_uninstall; return ;;
+    nvim)
+      [[ -f "$state/nvim-created" ]] || { echo "没有 Neovim 安装记录。"; return 1; }
+      rm -rf "$home/.config/nvim"; rm -rf "$state"; echo "已卸载 LazyVim 配置。"; return ;;
+    dms) echo "DMS 的 duxinstall 尚未提供安全的逐文件卸载清单；为避免覆盖用户修改，拒绝自动恢复整个配置目录。" >&2; return 1 ;;
+    fonts) echo "字体选择由 Kitty 配置管理；请使用 kitty-setup 卸载本模块添加的配置。" ;;
   esac
 }
-
 echo "配置管理：$module"
 if [[ "$yes" == true ]]; then
-  if [[ -f "$state_root/installed" ]]; then
-    echo "该模块已安装。"
-    exit 0
-  fi
-  install_module
+  [[ -e "$state/installed" ]] && { echo "该模块已安装。"; exit 0; }
+  simple_install
   exit $?
 fi
 select action in Install Uninstall Cancel; do
   case "$action" in
-    Install) install_module; break ;;
-    Uninstall) uninstall_module; break ;;
+    Install) simple_install; break ;;
+    Uninstall)
+      if ask "确认卸载 $module？"; then simple_uninstall; else echo "已取消。"; fi
+      break ;;
     Cancel) echo "已取消，未修改任何文件。"; exit 0 ;;
-    *) echo "无效选择，请重试。" ;;
+    *) echo "无效选择。" ;;
   esac
 done

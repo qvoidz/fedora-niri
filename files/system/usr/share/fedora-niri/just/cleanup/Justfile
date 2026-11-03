@@ -1,0 +1,2 @@
+cleanup *args:
+    exec /usr/libexec/fedora-niri-cleanup {{args}}

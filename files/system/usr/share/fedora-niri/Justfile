@@ -1,12 +1,11 @@
-# Global Justfile for the Fedora Niri image.
-# JUST_JUSTFILE points here so every user can run plain "just".
-
-import "just/dms-setup.just"
-import "just/kitty-setup.just"
-import "just/fcitx-setup.just"
-import "just/fonts-setup.just"
-import "just/nvim-setup.just"
-import "just/maintenance.just"
+# Global Justfile; feature recipes are isolated by directory.
+import "just/kitty-setup/Justfile"
+import "just/fcitx-setup/Justfile"
+import "just/dms-setup/Justfile"
+import "just/nvim-setup/Justfile"
+import "just/fonts-setup/Justfile"
+import "just/cleanup/Justfile"
+import "just/user-dirs/Justfile"
 
 default:
     @just --list

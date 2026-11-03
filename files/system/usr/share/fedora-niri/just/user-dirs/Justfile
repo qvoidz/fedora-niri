@@ -1,0 +1,2 @@
+user-dirs *args:
+    exec /usr/libexec/fedora-niri-user-dirs {{args}}
