@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+config_dir="${HOME}/.config"
+state_dir="${HOME}/.local/state"
+state_file="${state_dir}/fedora-niri-first-login"
+
+# Do not repeat completed initialization.
+[[ -e "${state_file}" ]] && exit 0
+
+mkdir -p "${config_dir}/kitty" "${state_dir}"
+
+# Install the default Kitty configuration only when the user has no config.
+if [[ ! -e "${config_dir}/kitty/kitty.conf" ]]; then
+    install -m 0644 /usr/share/fedora-niri/defaults/kitty.conf "${config_dir}/kitty/kitty.conf"
+fi
+
+# Bootstrap the official LazyVim starter only when Neovim has no existing config.
+if [[ ! -e "${config_dir}/nvim" ]]; then
+    tmp_dir="$(mktemp -d "${config_dir}/.nvim-starter.XXXXXX")"
+    cleanup() {
+        rm -rf "${tmp_dir}"
+    }
+    trap cleanup EXIT
+
+    git clone --depth=1 https://github.com/LazyVim/starter "${tmp_dir}/nvim"
+    rm -rf "${tmp_dir}/nvim/.git"
+    mv "${tmp_dir}/nvim" "${config_dir}/nvim"
+fi
+
+touch "${state_file}"

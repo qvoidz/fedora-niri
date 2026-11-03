@@ -25,7 +25,19 @@ modules:
         - dms-greeter
         - greetd
         - kitty
+        - fish
+        - neovim
         - git
+        - curl
+        - ripgrep
+        - fd-find
+        - tree-sitter-cli
+        - gcc
+        - make
+        - unzip
+        - python3-neovim
+        # Global multilingual font coverage
+        - google-noto-fonts-all
         # DMS optional feature providers
         - danksearch
         - dgop
@@ -69,6 +81,9 @@ modules:
     system:
       enabled:
         - greetd.service
+    user:
+      enabled:
+        - fedora-niri-first-login.service
 
   - type: default-flatpaks
     configurations:

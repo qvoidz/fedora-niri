@@ -1,15 +1,27 @@
 # Fedora Niri
 
-基于 BlueBuild 的 Fedora Atomic 自定义镜像，使用 NVIDIA 驱动基础镜像，提供 Niri、DankMaterialShell（DMS）、DMS Greeter 和常用桌面工具。
+基于 BlueBuild 的 Fedora Atomic 自定义镜像，使用 NVIDIA 驱动基础镜像，提供 Niri、DankMaterialShell（DMS）、DMS Greeter 和开箱即用的桌面配置。
 
 ## 镜像内容
 
-- 桌面：Niri（Git 版）、DankMaterialShell、DMS Greeter、Kitty
+- 桌面：Niri（Git 版）、DankMaterialShell、DMS Greeter、greetd、Kitty、Fish
+- 编辑器：Neovim + LazyVim 官方 Starter（首次用户登录时自动初始化）
+- Neovim 工具：Git、curl、ripgrep、fd、tree-sitter-cli、GCC、Make、unzip、Python Neovim 支持
 - DMS 功能组件：DankSearch（文件搜索）、dgop（系统资源监控）、Cava（音频可视化）、Qt Multimedia（系统声音反馈）、电源配置、打印机管理和 DDC 显示器亮度工具
 - 输入法：Fcitx5、Rime、雾凇拼音；包含用户级自动启动项和会话环境变量
-- 字体：Cascadia Code Nerd Font
+- 字体：Cascadia Code Nerd Font + Fedora 的 `google-noto-fonts-all`（全局安装 Noto 全字体家族）
 - DNF/RPM：Microsoft Edge、Clash Verge Rev（来自官方源/Release，Clash Verge Rev 构建时校验 SHA-256）
 - Flathub：微信、腾讯会议、Visual Studio Code、Steam、Lutris
+
+## 自动用户配置
+
+首次登录时，系统级 systemd 用户服务会自动：
+
+- 在用户没有 Neovim 配置时，克隆 LazyVim 官方 Starter 到 `~/.config/nvim`。
+- 在用户没有 Kitty 配置时，将默认配置复制到 `~/.config/kitty/kitty.conf`。
+- Kitty 默认使用 Cascadia Code Nerd Font 和 Fish。
+
+已有的 `~/.config/nvim` 和 `~/.config/kitty/kitty.conf` 不会被覆盖。LazyVim 插件在第一次运行 `nvim` 时下载，因此首次启动 Neovim 需要网络连接。
 
 ## 安装
 
@@ -48,18 +60,14 @@ dsearch index generate
 
 ### Greeter 主题同步
 
-Greeter 已配置为使用 Niri。首次登录桌面后，可运行：
-
 ```bash
 dms-greeter sync
 dms-greeter status
 ```
 
-同步命令会配置 Greeter 读取当前用户的 DMS 主题、壁纸和设置。多用户环境下，主用户执行一次完整同步；其他用户按上游说明执行 `dms-greeter sync --profile`。
-
 ### Fcitx5 / Rime
 
-Fcitx5 会随图形会话自动启动。镜像已提供用户级 autostart 文件，以及 systemd 用户环境变量。GTK 原生 Wayland 应用保留 Wayland text-input-v3，不强制设置 `GTK_IM_MODULE`；Qt、XWayland 和 SDL 使用相应的 Fcitx 兼容变量。
+Fcitx5 会随图形会话自动启动。镜像提供用户级 autostart 文件，以及 systemd 用户环境变量。GTK 原生 Wayland 应用保留 Wayland text-input-v3，不强制设置 `GTK_IM_MODULE`；Qt、XWayland 和 SDL 使用相应的 Fcitx 兼容变量。
 
 首次登录后打开 Fcitx5 配置工具，将 Rime 添加为输入法；雾凇拼音数据已预置到新用户的 Rime 目录。
 

@@ -1,8 +1,31 @@
 # 安装后说明
 
+## 自动用户配置
+
+首次登录时，系统级 systemd 用户服务 `fedora-niri-first-login.service` 会自动初始化默认用户配置：
+
+- 如果 `~/.config/nvim` 不存在，克隆 LazyVim 官方 Starter。
+- 如果 `~/.config/kitty/kitty.conf` 不存在，复制默认 Kitty 配置。
+- Kitty 默认使用 Cascadia Code Nerd Font 和 Fish。
+- 已存在的 Neovim/Kitty 配置不会被覆盖。
+
+检查初始化服务：
+
+```bash
+systemctl --user status fedora-niri-first-login.service
+journalctl --user -u fedora-niri-first-login.service -b
+```
+
+LazyVim 插件在第一次启动 `nvim` 时安装，需连接网络。Neovim 版本应满足 LazyVim 的最低要求（0.11.2）；Fedora 43 当前仓库提供的版本高于该要求。
+
+## 字体
+
+- `Cascadia Code Nerd Font`：用于 Kitty、Neovim 图标和终端提示符。
+- `google-noto-fonts-all`：Fedora 全局安装的 Google Noto 全字体家族，覆盖大量语言和文字系统。
+
 ## DMS 与 Niri
 
-镜像预装 DMS 和它的可选组件。首次登录自己的 Niri 桌面后，以普通用户运行：
+首次登录自己的 Niri 桌面后，以普通用户运行：
 
 ```bash
 dms setup
@@ -35,11 +58,7 @@ journalctl --user -u dms -b
 
 ## DMS Greeter
 
-镜像包含 `greetd` 和 `dms-greeter`，并已写入：
-
-`/etc/greetd/config.toml`
-
-默认会话命令：
+镜像包含 `greetd` 和 `dms-greeter`，并已写入 `/etc/greetd/config.toml`：
 
 ```toml
 [terminal]
@@ -57,7 +76,7 @@ systemctl status greetd
 dms-greeter status
 ```
 
-首次登录桌面后运行 `dms-greeter sync`，同步当前用户的 DMS 主题、壁纸和设置到登录界面。多用户系统请按上游说明配置 greeter 组及 `sync --profile`。
+首次登录桌面后运行 `dms-greeter sync`，同步当前用户的 DMS 主题、壁纸和设置到登录界面。
 
 ## Fcitx5 / Rime
 
@@ -66,11 +85,7 @@ dms-greeter status
 - `/etc/environment.d/90-fcitx5.conf` 和用户 skeleton 中的同名配置提供环境变量。
 - 不设置全局 `GTK_IM_MODULE`，以免覆盖 GTK 原生 Wayland text-input-v3；Qt、XWayland 和 SDL 使用 Fcitx 对应变量。
 
-首次登录后打开 `fcitx5-configtool`，将 Rime 添加到输入法列表。雾凇拼音数据已预置到 `/etc/skel/.local/share/fcitx5/rime`，新用户首次创建时会获得配置。
-
-## 字体
-
-已安装 Cascadia Code Nerd Font，终端字体名称可在字体选择器中查找 Cascadia Code NF。
+首次登录后打开 `fcitx5-configtool`，将 Rime 添加到输入法列表。雾凇拼音数据已预置到新用户的 Rime 目录。
 
 ## 应用来源
 
