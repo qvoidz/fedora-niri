@@ -20,9 +20,10 @@
 
 - 在用户没有 Neovim 配置时，克隆 LazyVim 官方 Starter 到 `~/.config/nvim`。
 - 在用户没有 Kitty 配置时，将默认配置复制到 `~/.config/kitty/kitty.conf`。
+- 自动执行 `dms setup headless --compositor niri --terminal kitty --skip-existing`，生成 Niri 的 DMS 配置并绑定 DMS systemd 服务。
 - Kitty 默认使用 Cascadia Code Nerd Font 和 Fish。
 
-已有的 `~/.config/nvim` 和 `~/.config/kitty/kitty.conf` 不会被覆盖。LazyVim 插件在第一次运行 `nvim` 时下载，因此首次启动 Neovim 需要网络连接。
+已有的 `~/.config/nvim`、`~/.config/kitty/kitty.conf` 以及已有的 DMS 配置不会被覆盖。DMS 初始化使用无交互模式，跳过已有配置。LazyVim 插件在第一次运行 `nvim` 时下载，因此首次启动 Neovim 需要网络连接。
 
 ## 安装
 
@@ -36,15 +37,7 @@ sudo systemctl reboot
 
 ## 首次登录配置
 
-镜像会启用 greetd，并将 DMS Greeter 的登录会话固定为 Niri。DMS Greeter 会替代原有显示管理器。
-
-首次进入自己的 Niri 桌面后，以普通用户执行：
-
-```bash
-dms setup
-```
-
-该命令生成 Niri 的 DMS 配置，并将 DMS 服务绑定到 Niri 会话。不要再额外添加 `dms run`，避免重复启动。
+镜像会启用 greetd，并将 DMS Greeter 的登录会话固定为 Niri。DMS Greeter 会替代原有显示管理器。首次登录时，用户级初始化服务会自动生成 Niri 的 DMS 配置，并将 DMS systemd 服务绑定到 Niri 会话，无需手动执行 `dms setup`。不要再额外添加 `dms run`，避免重复启动。
 
 ### 文件搜索
 
