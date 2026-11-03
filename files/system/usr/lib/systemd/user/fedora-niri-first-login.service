@@ -1,0 +1,11 @@
+[Unit]
+Description=Initialize default Fedora Niri user configuration
+Documentation=https://github.com/qvoidz/niri
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/fedora-niri-first-login
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
