@@ -1,15 +1,16 @@
-# Post-install notes
+# 安装后说明
 
 ## DMS Greeter
 
-The image includes `dms-greeter`, but does not enable it automatically. On Fedora Atomic, configure greetd and enable its service explicitly; do not rely on `dms-greeter install` or `dms-greeter enable`, which are disabled by the immutable-system policy.
+镜像包含 `dms-greeter`，但不会自动启用。请根据当前安装版本的文档配置 `/etc/greetd/config.toml`，确认命令行参数后再启用 `greetd.service`。启用 greetd 会替换当前显示管理器，因此需要手动执行。
 
-For a Niri session, configure `/etc/greetd/config.toml` according to the installed DMS Greeter version and verify its documented command-line options before enabling `greetd.service`. Enabling greetd replaces the current display manager, so this remains an explicit deployment step.
+## 雾凇拼音
 
-## Rime Ice
+镜像会将雾凇拼音预置到 `/etc/skel/.local/share/fcitx5/rime`，新建用户会自动获得配置。不会覆盖已有用户的数据；已有用户可参考上游安装说明：
+https://github.com/iDvel/rime-ice/blob/main/others/docs/Installation.md
 
-The image seeds Rime Ice under `/etc/skel/.local/share/fcitx5/rime`, so newly created user accounts receive it automatically. Existing accounts are not overwritten; they can follow the upstream installation guide at <https://github.com/iDvel/rime-ice/blob/main/others/docs/Installation.md>.
+## 应用来源
 
-## Flatpak applications
-
-Tencent Meeting (`com.tencent.wemeet`), WeChat (`com.tencent.WeChat`), Visual Studio Code (`com.visualstudio.code`), Steam (`com.valvesoftware.Steam`) and Lutris (`net.lutris.Lutris`) are installed system-wide from Flathub.
+- 微信、腾讯会议、Visual Studio Code、Steam、Lutris：系统级 Flathub 应用。
+- Microsoft Edge：通过微软 DNF 仓库安装 RPM。
+- Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。自动更新工作流每天检查稳定版，并在版本变化时更新镜像安装脚本。
