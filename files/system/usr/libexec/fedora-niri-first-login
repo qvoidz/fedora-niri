@@ -15,8 +15,9 @@ mkdir -p "${config_dir}/kitty" "${state_dir}"
 # Preserve an existing Kitty configuration; only customize a new one.
 [[ -e "${kitty_config}" ]] && kitty_config_existed=true
 
-# Deploy DMS defaults for Niri and Kitty before applying Fedora Niri's Kitty overrides.
-dms setup headless --compositor niri --terminal kitty --skip-existing
+# Deploy DMS configuration using the official installer for Atomic/bootc systems.
+# The image build installs all required packages before this runs.
+duxinstall -c niri -t kitty -y
 
 if [[ "${kitty_config_existed}" == false ]]; then
     mkdir -p "${config_dir}/kitty"
