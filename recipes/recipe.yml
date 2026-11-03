@@ -55,7 +55,6 @@ modules:
         - NetworkManager
         # Input method and Rime
         - fcitx5
-        - fcitx5-autostart
         - fcitx5-gtk
         - fcitx5-qt
         - fcitx5-rime
