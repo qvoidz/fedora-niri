@@ -25,12 +25,12 @@ modules:
         - dms-greeter
         - greetd
         - kitty
+        - fish
         - neovim
         - git
         - curl
         - ripgrep
         - fd-find
-        - lazygit
         - tree-sitter-cli
         - gcc
         - make
