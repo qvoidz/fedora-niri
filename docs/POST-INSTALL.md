@@ -108,7 +108,7 @@ dms-greeter status
 - `virt-manager`、`virt-viewer`：图形化管理和控制台。
 - `edk2-ovmf`、`swtpm`：UEFI 固件和软件 TPM。
 
-系统启用了 `libvirtd.socket`，客户端连接时会按需启动 libvirt。确认 CPU 虚拟化扩展（Intel VT-x / AMD-V）已在 BIOS/UEFI 中启用，然后检查：
+系统启用了 Fedora 模块化 `virtqemud.service` 和 `virtnetworkd.socket`；QEMU 管理守护进程启动时运行，网络守护进程按需启动。确认 CPU 虚拟化扩展（Intel VT-x / AMD-V）已在 BIOS/UEFI 中启用，然后检查：
 
 ```bash
 virt-host-validate
