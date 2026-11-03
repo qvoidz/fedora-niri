@@ -89,7 +89,8 @@ dms-greeter status
 
 ## 应用来源
 
-- 微信、腾讯会议、Visual Studio Code、Steam、Lutris：系统级 Flathub 应用。
+- 微信、腾讯会议、Linux QQ、Steam、Lutris：系统级 Flathub 应用。
+- Visual Studio Code：Microsoft 官方 RPM 仓库。
 - Microsoft Edge：通过微软 DNF 仓库安装 RPM。
 - Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。自动更新工作流每天检查稳定版，并在版本变化时更新镜像安装脚本。
 
