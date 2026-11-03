@@ -126,6 +126,94 @@ fcitx_uninstall() {
   echo "已恢复 Fcitx5 安装前配置。"
 }
 
+install_active=false
+rollback_install() {
+  local rc=$?
+  if [[ "$install_active" == true ]]; then
+    trap - EXIT INT TERM HUP
+    case "$module" in
+      kitty)
+        if [[ -f "$kitty_state" && -f "$kitty_file" ]]; then
+          local tmp; tmp="$(mktemp)"; cp -a "$kitty_file" "$tmp"
+          while IFS= read -r line; do
+            awk -v target="$line" 'BEGIN{removed=0} $0==target && !removed {removed=1; next} {print}' "$tmp" > "$tmp.next"
+            mv "$tmp.next" "$tmp"
+          done < "$kitty_state"
+          cat "$tmp" > "$kitty_file"; rm -f "$tmp"
+        fi
+        ;;
+      fcitx)
+        if [[ -f "$state/manifest" ]]; then
+          while IFS=
+  if [[ -e "$state/installed" ]]; then echo "该模块已安装。"; return 0; fi
+  mkdir -p "$state"
+  case "$module" in
+    kitty) kitty_install ;;
+    fcitx) : > "$state/manifest"; fcitx_install ;;
+    nvim)
+      [[ ! -e "$home/.config/nvim" ]] || { echo "~/.config/nvim 已存在，拒绝覆盖。" >&2; return 1; }
+      git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
+      rm -rf "$home/.config/nvim/.git"
+      touch "$state/nvim-created"
+      ;;
+    dms)
+      command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
+      duxinstall -c niri -t kitty -y
+      ;;
+    fonts) echo "字体配置请使用 fonts-setup 模块。" ;;
+    *) echo "未知模块：$module" >&2; return 2 ;;
+  esac
+  touch "$state/installed"
+  echo "安装完成。"
+}
+simple_uninstall() {
+  case "$module" in
+    kitty) kitty_uninstall; return ;;
+    fcitx) fcitx_uninstall; return ;;
+    nvim)
+      [[ -f "$state/nvim-created" ]] || { echo "没有 Neovim 安装记录。"; return 1; }
+      rm -rf "$home/.config/nvim"; rm -rf "$state"; echo "已卸载 LazyVim 配置。"; return ;;
+    dms) echo "DMS 的 duxinstall 尚未提供安全的逐文件卸载清单；为避免覆盖用户修改，拒绝自动恢复整个配置目录。" >&2; return 1 ;;
+    fonts) echo "字体选择由 Kitty 配置管理；请使用 kitty-setup 卸载本模块添加的配置。" ;;
+  esac
+}
+echo "配置管理：$module"
+if [[ "$yes" == true ]]; then
+  [[ -e "$state/installed" ]] && { echo "该模块已安装。"; exit 0; }
+  simple_install
+  exit $?
+fi
+select action in Install Uninstall Cancel; do
+  case "$action" in
+    Install) simple_install; break ;;
+    Uninstall)
+      if ask "确认卸载 $module？"; then simple_uninstall; else echo "已取消。"; fi
+      break ;;
+    Cancel) echo "已取消，未修改任何文件。"; exit 0 ;;
+    *) echo "无效选择。" ;;
+  esac
+done
+\\t' read -r status rel; do
+            target="$home/$rel"
+            if [[ "$status" == present && -e "$state/original/$rel" ]]; then
+              mkdir -p "$(dirname "$target")"; cp -a "$state/original/$rel" "$target"
+            else rm -f "$target"; fi
+          done < "$state/manifest"
+        fi
+        [[ -f "$state/rime-created" ]] && rm -rf "$home/.local/share/fcitx5/rime"
+        ;;
+      nvim) [[ -f "$state/nvim-created" ]] && rm -rf "$home/.config/nvim" ;;
+    esac
+    rm -rf "$state"
+    echo "安装中断或失败：已回滚本次模块改动。" >&2
+  fi
+  exit "$rc"
+}
+trap rollback_install EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
 simple_install() {
   if [[ -e "$state/installed" ]]; then echo "该模块已安装。"; return 0; fi
   mkdir -p "$state"
