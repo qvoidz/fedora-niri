@@ -3,17 +3,67 @@ set -euo pipefail
 : "${HOME:?HOME is not set}"
 
 cat <<'EOF'
-此操作会删除当前用户 HOME 目录中的所有内容，包括：
-  - 文档、下载、图片、视频等个人文件
-  - .config、.local、.cache 等用户配置、应用数据和缓存
-  - SSH/GPG 密钥、浏览器数据、Neovim/Kitty/Fcitx/DMS 配置
-  - 本项目各配置模块的备份和安装记录
-
-不会修改 /usr、/etc、RPM-OSTree 部署、系统软件包或其他用户。
-此操作不可撤销。请先备份需要保留的数据。
+此操作会清理当前用户环境：
+  - 删除 HOME 中的个人配置、缓存和应用数据
+  - 可单独选择是否卸载用户级 Flatpak 应用及其数据
+  - 项目镜像预装的系统级 Flatpak 应用始终保留
+  - 不修改系统 RPM、系统镜像、系统配置或其他用户
 EOF
-printf '\n输入 RESET 确认清空 %s ：' "$HOME"
+
+printf '\n是否卸载用户级 Flatpak 应用及其数据？[Y/n] '
+IFS= read -r flatpak_answer
+case "${flatpak_answer,,}" in
+  n|no)
+    remove_user_flatpaks=false
+    echo "保留用户级 Flatpak 应用及其数据。"
+    ;;
+  y|yes|'')
+    remove_user_flatpaks=true
+    if command -v flatpak >/dev/null 2>&1; then
+      echo "正在卸载用户级 Flatpak 应用及其数据……"
+      flatpak uninstall --user --all --delete-data --assumeyes || {
+        echo "Flatpak 卸载命令失败；为避免误删 Flatpak 数据，已停止清理。" >&2
+        exit 1
+      }
+    else
+      echo "未找到 flatpak 命令，将继续清理 HOME 中的用户级 Flatpak 数据。"
+    fi
+    ;;
+  *)
+    echo "无效选择，已取消。" >&2
+    exit 1
+    ;;
+esac
+
+printf '\n即将清理当前用户 HOME：%s\n输入 RESET 确认：' "$HOME"
 IFS= read -r answer
-[[ "$answer" == RESET ]] || { echo "已取消，未删除任何内容。"; exit 0; }
-find "$HOME" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-echo "当前用户 HOME 已清空。请注销并重新登录以重新生成桌面会话状态。"
+[[ "$answer" == RESET ]] || { echo "已取消，未清理 HOME。"; exit 0; }
+
+if [[ "$remove_user_flatpaks" == true ]]; then
+  find "$HOME" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+else
+  # Preserve user-scoped Flatpak installations and app data only.
+  for entry in "$HOME"/* "$HOME"/.[!.]* "$HOME"/..?*; do
+    [[ -e "$entry" || -L "$entry" ]] || continue
+    case "$entry" in
+      "$HOME/.local")
+        mkdir -p "$HOME/.local/share"
+        find "$HOME/.local" -mindepth 1 -maxdepth 1 ! -name share -exec rm -rf -- {} +
+        find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +
+        ;;
+      "$HOME/.var")
+        mkdir -p "$HOME/.var"
+        find "$HOME/.var" -mindepth 1 -maxdepth 1 ! -name app -exec rm -rf -- {} +
+        ;;
+      *)
+        rm -rf -- "$entry"
+        ;;
+    esac
+  done
+fi
+
+echo "当前用户环境清理完成。"
+if [[ "$remove_user_flatpaks" == false ]]; then
+  echo "已保留用户级 Flatpak 安装目录和应用数据。"
+fi
+echo "项目镜像预装的系统级 Flatpak 应用未被卸载。请注销并重新登录。"
