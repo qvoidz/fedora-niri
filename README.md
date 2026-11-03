@@ -10,8 +10,9 @@
 - DMS 功能组件：DankSearch（文件搜索）、dgop（系统资源监控）、Cava（音频可视化）、Qt Multimedia（系统声音反馈）、电源配置、打印机管理和 DDC 显示器亮度工具
 - 输入法：Fcitx5、Rime、雾凇拼音；包含用户级自动启动项和会话环境变量
 - 字体：Cascadia Code Nerd Font + Fedora 的 `google-noto-fonts-all`（全局安装 Noto 全字体家族）
-- DNF/RPM：Microsoft Edge、Clash Verge Rev（来自官方源/Release，Clash Verge Rev 构建时校验 SHA-256）
-- Flathub：微信、腾讯会议、Visual Studio Code、Steam、Lutris
+- DNF/RPM：Microsoft Edge、Microsoft 官方仓库的 Visual Studio Code、Clash Verge Rev（来自官方 Release，构建时校验 SHA-256）
+- 虚拟化：QEMU/KVM、libvirt、virt-manager、virt-install、UEFI 固件（OVMF）和 TPM 模拟器；系统启用 libvirt socket
+- Flathub：微信、腾讯会议、Linux QQ、Steam、Lutris
 
 ## 自动用户配置
 
@@ -82,3 +83,26 @@ GitHub 仓库需要配置 Actions Secret `SIGNING_SECRET`（与仓库中的 `cos
 ## 构建与更新
 
 GitHub Actions 会在 Pull Request、推送到仓库和定时任务时构建镜像。Clash Verge Rev 的更新工作流每天检查官方最新稳定版；发现新版本后更新版本号和 SHA-256，并显式触发镜像构建。
+
+## QEMU / KVM 虚拟化
+
+镜像预装 QEMU/KVM、libvirt、Virtual Machine Manager（virt-manager）、virt-install、OVMF UEFI 固件、swtpm 和默认 NAT 网络所需组件。系统已启用 `libvirtd.socket`，libvirt 守护进程会在客户端连接时按需启动。
+
+首次使用前确认固件中已开启 Intel VT-x 或 AMD-V。启动 virt-manager 后连接系统级 QEMU/KVM（`qemu:///system`）。检查虚拟化状态：
+
+```bash
+virt-host-validate
+virsh -c qemu:///system list --all
+```
+
+如需使用 libvirt 默认 NAT 网络，首次启用：
+
+```bash
+sudo virsh net-autostart default
+sudo virsh net-start default
+```
+
+## QQ 与 Visual Studio Code
+
+- Linux QQ 通过 Flathub 的 `com.qq.QQ` 安装。Flathub 页面标注该包由 Tencent 开发，但尚未通过 Tencent 验证；它是社区提供的 Flatpak 包。
+- Visual Studio Code 使用 Microsoft 官方 RPM 仓库安装，随 DNF 更新。
