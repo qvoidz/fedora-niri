@@ -1,27 +1,28 @@
 ---
 # YAML 语言服务器使用的 BlueBuild 配置校验规则
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-name: template
+name: fedora-niri
 description: Personal Niri desktop image with NVIDIA drivers.
 
-# 使用 BlueBuild 官方 Fedora NVIDIA 基础镜像
 base-image: ghcr.io/blue-build/base-images/fedora-base-nvidia
 image-version: latest
 
 modules:
-  # 将仓库中的 system 目录内容复制到镜像根目录
   - type: files
     files:
       - source: system
         destination: /
 
-  # 添加 COPR 软件源并安装桌面环境及输入法组件
   - type: dnf
     repos:
       copr:
         - avengemedia/dms
         - avengemedia/danklinux
         - yalter/niri-git
+      files:
+        - microsoft-edge.repo
+      keys:
+        - https://packages.microsoft.com/keys/microsoft.asc
     install:
       packages:
         - dms
@@ -37,13 +38,16 @@ modules:
         - fcitx5-configtool
         - librime-lua
         - librime-octagram
+        - microsoft-edge-stable
 
-  # 为新建用户预置雾凇拼音配置
   - type: script
     scripts:
       - install-rime-ice.sh
 
-  # 从 Flathub 为所有用户安装常用桌面应用
+  - type: script
+    scripts:
+      - install-clash-verge-rev.sh
+
   - type: default-flatpaks
     configurations:
       - scope: system
@@ -56,5 +60,4 @@ modules:
           - net.lutris.Lutris
       - scope: user
 
-  # 为构建的镜像启用签名支持
   - type: signing
