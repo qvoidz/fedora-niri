@@ -33,7 +33,6 @@ sudo bootc switch ghcr.io/qvoidz/fedora-niri:latest
 sudo systemctl reboot
 ```
 
-执行一次切换并重启即可，不需要先切换到未签名镜像，也不需要执行两次 Rebase。
 
 ## 首次登录配置
 
