@@ -63,7 +63,11 @@ rollback_install() {
   if [[ "$in_install" == true ]]; then
     trap - EXIT INT TERM HUP
     echo "安装未正常完成，正在恢复安装前配置……" >&2
-    if [[ "$module" == kitty || "$module" == fonts ]]; then\n      remove_kitty_settings || echo "警告：Kitty 配置回滚失败，记录仍保留在 $state_root" >&2\n    else\n      restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2\n    fi
+    if [[ "$module" == kitty || "$module" == fonts ]]; then
+      remove_kitty_settings || echo "警告：Kitty 配置回滚失败，记录仍保留在 $state_root" >&2
+    else
+      restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2
+    fi
     rm -f "$state_root/installed" "$state_root/installing"
     [[ -f "$manifest" ]] && touch "$state_root/failed"
   fi
@@ -189,7 +193,11 @@ replace_kitty_block() {
 
 do_install() {
   case "$module" in
-    kitty)\n      local conf="$home/.config/kitty/kitty.conf"\n      [[ -e "$conf" ]] || touch "$kitty_created_file"\n      append_kitty_settings "shell /usr/bin/fish" "background_opacity 0.8"\n      ;;
+    kitty)
+      local conf="$home/.config/kitty/kitty.conf"
+      [[ -e "$conf" ]] || touch "$kitty_created_file"
+      append_kitty_settings "shell /usr/bin/fish" "background_opacity 0.8"
+      ;;
     fonts)
       command -v fc-list >/dev/null || { echo "缺少 fc-list。" >&2; return 1; }
       mapfile -t choices < <(fc-list : family | sed 's/,.*//' | sed 's/^ *//;s/ *$//' | sort -u)
@@ -209,7 +217,9 @@ do_install() {
           echo "无效选择，请重试。"
         done
       fi
-      local conf="$home/.config/kitty/kitty.conf"\n      [[ -e "$conf" ]] || touch "$kitty_created_file"\n      append_kitty_settings "font_family $selected"
+      local conf="$home/.config/kitty/kitty.conf"
+      [[ -e "$conf" ]] || touch "$kitty_created_file"
+      append_kitty_settings "font_family $selected"
       ;;
     fcitx)
       command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
