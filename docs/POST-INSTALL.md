@@ -89,6 +89,50 @@ dms-greeter status
 
 ## 应用来源
 
-- 微信、腾讯会议、Visual Studio Code、Steam、Lutris：系统级 Flathub 应用。
+- 微信、腾讯会议、Linux QQ、Steam、Lutris：系统级 Flathub 应用。
+- Visual Studio Code：Microsoft 官方 RPM 仓库。
 - Microsoft Edge：通过微软 DNF 仓库安装 RPM。
 - Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。自动更新工作流每天检查稳定版，并在版本变化时更新镜像安装脚本。
+
+## QQ 与 Visual Studio Code
+
+- Linux QQ：通过 Flathub 系统级安装 `com.qq.QQ`。Flathub 将其标记为由 Tencent 开发，但该 Flatpak 包尚未通过 Tencent 验证，属于社区提供的打包。
+- Visual Studio Code：通过 Microsoft 官方 RPM 仓库安装 `code`，由 DNF 管理更新。
+
+## QEMU / KVM
+
+镜像预装以下组件：
+
+- `qemu-kvm`、`libvirt-daemon-kvm`：QEMU 和 KVM 虚拟化后端。
+- `libvirt-daemon-config-network`、`dnsmasq`：libvirt 虚拟网络/NAT。
+- `libvirt-client`、`virt-install`：命令行管理和虚拟机创建工具。
+- `virt-manager`、`virt-viewer`：图形化管理和控制台。
+- `edk2-ovmf`、`swtpm`：UEFI 固件和软件 TPM。
+
+系统启用了 Fedora 模块化 `virtqemud.service` 和 `virtnetworkd.socket`；QEMU 管理守护进程启动时运行，网络守护进程按需启动。确认 CPU 虚拟化扩展（Intel VT-x / AMD-V）已在 BIOS/UEFI 中启用，然后检查：
+
+```bash
+virt-host-validate
+virsh -c qemu:///system list --all
+```
+
+打开图形管理器：
+
+```bash
+virt-manager
+```
+
+首次使用默认 NAT 网络时执行：
+
+```bash
+sudo virsh net-autostart default
+sudo virsh net-start default
+```
+
+检查网络：
+
+```bash
+virsh -c qemu:///system net-list --all
+```
+
+virt-manager 默认连接系统级 QEMU/KVM（`qemu:///system`）。通过 polkit 授权管理虚拟机；不需要把日常用户加入 root 组。
