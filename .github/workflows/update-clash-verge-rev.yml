@@ -1,0 +1,107 @@
+name: Update Clash Verge Rev
+
+on:
+  schedule:
+    - cron: "30 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: update-clash-verge-rev
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check latest stable release and update RPM pin
+        id: update
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          api = "https://api.github.com/repos/clash-verge-rev/clash-verge-rev/releases/latest"
+          request = urllib.request.Request(
+              api,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "qvoidz-niri-release-updater",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              release = json.load(response)
+
+          if release.get("draft") or release.get("prerelease"):
+              raise SystemExit("Latest release is not a stable release")
+
+          version = release["tag_name"].removeprefix("v")
+          if not re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}", version):
+              raise SystemExit(f"Unexpected release version: {version!r}")
+
+          asset_name = f"Clash.Verge-{version}-1.x86_64.rpm"
+          assets = [asset for asset in release["assets"] if asset["name"] == asset_name]
+          if len(assets) != 1:
+              raise SystemExit(f"Expected exactly one asset named {asset_name}")
+
+          digest = assets[0].get("digest", "")
+          match = re.fullmatch(r"sha256:([0-9a-f]{64})", digest)
+          if not match:
+              raise SystemExit(f"Release asset has no valid SHA-256 digest: {digest!r}")
+          sha256 = match.group(1)
+
+          path = "files/scripts/install-clash-verge-rev.sh"
+          with open(path, encoding="utf-8") as file:
+              content = file.read()
+
+          new_content, version_count = re.subn(
+              r'^version="[^"]+"$',
+              f'version="{version}"',
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          new_content, digest_count = re.subn(
+              r'^expected_sha256="[0-9a-f]{64}"$',
+              f'expected_sha256="{sha256}"',
+              new_content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if version_count != 1 or digest_count != 1:
+              raise SystemExit("Could not safely locate version and SHA-256 pins")
+
+          with open(path, "w", encoding="utf-8") as file:
+              file.write(new_content)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+          PY
+
+      - name: Commit updated version and trigger image build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- files/scripts/install-clash-verge-rev.sh; then
+            echo "Clash Verge Rev is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add files/scripts/install-clash-verge-rev.sh
+          git commit -m "chore: update Clash Verge Rev to ${{ steps.update.outputs.version }}"
+          git push
+
+          gh workflow run build.yml --ref main
