@@ -16,8 +16,6 @@ modules:
       files:
         - microsoft-edge.repo
         - vscode.repo
-      keys:
-        - https://packages.microsoft.com/keys/microsoft.asc
     install:
       packages:
         # Desktop and login manager
