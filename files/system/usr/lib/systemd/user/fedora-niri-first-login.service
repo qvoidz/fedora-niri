@@ -4,7 +4,7 @@ Documentation=https://github.com/qvoidz/niri
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/fedora-niri-first-login
+ExecStart=/usr/bin/bash /usr/libexec/fedora-niri-first-login
 RemainAfterExit=yes
 
 [Install]
