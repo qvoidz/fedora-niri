@@ -39,7 +39,7 @@ just
 | `just fonts-setup` | 从已安装字体中选择 Kitty 使用的字体 |
 | `just nvim-setup` | 安装 LazyVim 官方 Starter |
 | `just user-dirs` | 将 XDG 文档、下载、图片等标准目录固定为英文名称 |
-| `just cleanup` | 清空当前用户 HOME，重置用户环境 |
+| `just cleanup` | 按类别清理当前用户配置、缓存、应用数据、个人文件和用户级 Flatpak |
 
 配置任务会在安装前备份它们管理的目标路径，卸载时删除这些目标的当前版本并恢复备份。DMS 在运行 duxinstall 前备份 Niri、Quickshell、DMS 的相关用户配置根目录。卸载恢复会将这些目录还原到安装前状态，因此安装后在这些目录里新增的个人修改也会被覆盖；需要保留时请先另行备份。
 

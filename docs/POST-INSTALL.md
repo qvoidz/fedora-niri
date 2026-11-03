@@ -12,7 +12,7 @@
 | `just fonts-setup` | 选择 Kitty 字体 |
 | `just nvim-setup` | 管理 LazyVim Starter |
 | `just user-dirs` | 固定英文 XDG 用户目录 |
-| `just cleanup` | 清空当前用户 HOME |
+| `just cleanup` | 按类别清理当前用户数据 |
 
 配置安装会先备份模块管理的目标；卸载时删除目标当前内容并恢复备份。DMS 在启动 duxinstall 前备份 Niri、Quickshell 和 DMS 配置目录。请注意，卸载会恢复这些目录的安装前快照，安装后在这些目录里新增的个人修改也会被覆盖。
 
