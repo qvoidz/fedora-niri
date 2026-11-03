@@ -29,6 +29,8 @@ modules:
         - dms-greeter
         - greetd
         - kitty
+        - just
+        - xdg-user-dirs
         - fish
         - neovim
         - git
@@ -83,10 +85,7 @@ modules:
     fonts:
       nerd-fonts:
         - CascadiaCode
-
-  - type: script
-    scripts:
-      - install-rime-ice.sh
+        - JetBrainsMono
 
   - type: script
     scripts:
@@ -100,7 +99,6 @@ modules:
         - virtnetworkd.socket
     user:
       enabled:
-        - fedora-niri-first-login.service
 
   - type: default-flatpaks
     configurations:
