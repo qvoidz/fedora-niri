@@ -11,7 +11,7 @@
 - 输入法：Fcitx5、Rime、雾凇拼音；包含用户级自动启动项和会话环境变量
 - 字体：Cascadia Code Nerd Font + Fedora 的 `google-noto-fonts-all`（全局安装 Noto 全字体家族）
 - DNF/RPM：Microsoft Edge、Microsoft 官方仓库的 Visual Studio Code、Clash Verge Rev（来自官方 Release，构建时校验 SHA-256）
-- 虚拟化：QEMU/KVM、libvirt、virt-manager、virt-install、UEFI 固件（OVMF）和 TPM 模拟器；系统启用 libvirt socket
+- 虚拟化：QEMU/KVM、libvirt、virt-manager、virt-install、UEFI 固件（OVMF）和 TPM 模拟器；系统启用 Fedora 模块化 virtqemud 服务和 virtnetworkd socket
 - Flathub：微信、腾讯会议、Linux QQ、Steam、Lutris
 
 ## 自动用户配置
