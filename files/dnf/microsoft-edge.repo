@@ -1,7 +1,7 @@
-[microsoft-edge]
-name=Microsoft Edge
+[edge-yum]
+name=edge-yum
 baseurl=https://packages.microsoft.com/yumrepos/edge/
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 repo_gpgcheck=0
+gpgcheck=0
+enabled=1
+gpgkey=https://packages.microsoft.com/yumrepos/edge/repodata/repomd.xml.key
