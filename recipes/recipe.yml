@@ -33,6 +33,7 @@ modules:
         - fcitx5-rime
         - fcitx5-configtool
         - librime-lua
+        - librime-octagram
         - microsoft-edge-stable
     remove:
       packages:
@@ -42,14 +43,6 @@ modules:
   - type: script
     scripts:
       - install-rime-ice.sh
-    snippets:
-      - |
-        cat > /etc/profile.d/fcitx5.sh <<'EOF'
-        export GTK_IM_MODULE=fcitx
-        export QT_IM_MODULE=fcitx
-        export XMODIFIERS=@im=fcitx
-        export SDL_IM_MODULE=fcitx
-        EOF
 
   - type: default-flatpaks
     configurations:
