@@ -1,6 +1,5 @@
 ---
-# YAML 语言服务器使用的 BlueBuild 配置校验规则
-# yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
+# YAML language server schema: https://schema.blue-build.org/recipe-v1.json
 name: fedora-niri
 description: Personal Niri desktop image with NVIDIA drivers.
 
@@ -8,11 +7,6 @@ base-image: ghcr.io/blue-build/base-images/fedora-base-nvidia
 image-version: latest
 
 modules:
-  - type: files
-    files:
-      - source: system
-        destination: /
-
   - type: dnf
     repos:
       copr:
@@ -25,11 +19,23 @@ modules:
         - https://packages.microsoft.com/keys/microsoft.asc
     install:
       packages:
+        # Desktop and login manager
+        - niri-git
         - dms
         - dms-greeter
-        - niri-git
+        - greetd
         - kitty
         - git
+        # DMS optional feature providers
+        - danksearch
+        - dgop
+        - cava
+        - qt6-qtmultimedia
+        - power-profiles-daemon
+        - cups-pk-helper
+        - i2c-tools
+        - NetworkManager
+        # Input method and Rime
         - fcitx5
         - fcitx5-autostart
         - fcitx5-gtk
@@ -38,7 +44,18 @@ modules:
         - fcitx5-configtool
         - librime-lua
         - librime-octagram
+        # Applications
         - microsoft-edge-stable
+
+  - type: files
+    files:
+      - source: system
+        destination: /
+
+  - type: fonts
+    fonts:
+      nerd-fonts:
+        - CascadiaCode
 
   - type: script
     scripts:
@@ -47,6 +64,11 @@ modules:
   - type: script
     scripts:
       - install-clash-verge-rev.sh
+
+  - type: systemd
+    system:
+      enabled:
+        - greetd.service
 
   - type: default-flatpaks
     configurations:
