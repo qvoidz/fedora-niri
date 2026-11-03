@@ -1,45 +1,64 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# image will be published to ghcr.io/<user>/<name>
 name: template
-# description will be included in the image's metadata
-description: This is my personal OS image.
+description: Personal Niri desktop image with NVIDIA drivers.
 
-# the base image to build on top of (FROM) and the version tag to use
 base-image: ghcr.io/blue-build/base-images/fedora-base-nvidia
-image-version: latest # You can pin to a specific version of Fedora as well
+image-version: latest
 
-# module configuration, executed in order
-# you can include multiple instances of the same module
 modules:
   - type: files
     files:
       - source: system
-        destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
+        destination: /
 
   - type: dnf
     repos:
       copr:
-        - atim/starship
+        - avengemedia/dms
+        - avengemedia/danklinux
+      files:
+        - https://packages.microsoft.com/yumrepos/edge/config.repo
     install:
       packages:
-        - micro
-        - starship
+        - dms
+        - dms-greeter
+        - niri
+        - kitty
+        - git
+        - fcitx5
+        - fcitx5-autostart
+        - fcitx5-gtk
+        - fcitx5-qt
+        - fcitx5-rime
+        - fcitx5-configtool
+        - librime-lua
+        - microsoft-edge-stable
     remove:
       packages:
-        # example: removing firefox (in favor of the flatpak)
-        # "firefox" is the main package, "firefox-langpacks" is a dependency
         - firefox
-        - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
+        - firefox-langpacks
+
+  - type: script
+    scripts:
+      - install-rime-ice.sh
+    snippets:
+      - |
+        cat > /etc/profile.d/fcitx5.sh <<'EOF'
+        export GTK_IM_MODULE=fcitx
+        export QT_IM_MODULE=fcitx
+        export XMODIFIERS=@im=fcitx
+        export SDL_IM_MODULE=fcitx
+        EOF
 
   - type: default-flatpaks
     configurations:
-      - notify: true # Send notification after install/uninstall is finished (true/false)
-        scope: system
-        # If no repo information is specified, Flathub will be used by default
-        install: # system flatpaks we want all users to have and not remove
-          - org.mozilla.firefox
-          - org.gnome.Loupe
-      - scope: user # Also add Flathub user repo, but no user packages
+      - scope: system
+        notify: true
+        install:
+          - com.tencent.WeChat
+          - com.valvesoftware.Steam
+          - net.lutris.Lutris
+      - scope: user
 
-  - type: signing # this sets up the proper policy & signing files for signed images to work fully
+  - type: signing
