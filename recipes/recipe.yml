@@ -29,6 +29,8 @@ modules:
         - dms-greeter
         - greetd
         - kitty
+        - just
+        - xdg-user-dirs
         - fish
         - neovim
         - git
@@ -53,7 +55,6 @@ modules:
         - NetworkManager
         # Input method and Rime
         - fcitx5
-        - fcitx5-autostart
         - fcitx5-gtk
         - fcitx5-qt
         - fcitx5-rime
@@ -83,10 +84,7 @@ modules:
     fonts:
       nerd-fonts:
         - CascadiaCode
-
-  - type: script
-    scripts:
-      - install-rime-ice.sh
+        - JetBrainsMono
 
   - type: script
     scripts:
@@ -98,9 +96,6 @@ modules:
         - greetd.service
         - virtqemud.service
         - virtnetworkd.socket
-    user:
-      enabled:
-        - fedora-niri-first-login.service
 
   - type: default-flatpaks
     configurations:

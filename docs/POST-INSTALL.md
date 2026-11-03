@@ -1,39 +1,30 @@
 # 安装后说明
 
-## 自动用户配置
+## 普通 Just 命令
 
-首次登录时，系统级 systemd 用户服务 `fedora-niri-first-login.service` 会自动初始化默认用户配置：
+镜像使用普通 `just` 和全局 Justfile，不依赖 `ujust` 或 `blujust`。运行 `just` 查看任务列表。
 
-- 如果 `~/.config/nvim` 不存在，克隆 LazyVim 官方 Starter。
-- 如果 `~/.config/kitty/kitty.conf` 不存在，复制默认 Kitty 配置。
-- Kitty 默认使用 Cascadia Code Nerd Font 和 Fish。
-- 已存在的 Neovim/Kitty 配置不会被覆盖。
+| 命令 | 说明 |
+| --- | --- |
+| `just dms-setup` | Install/Uninstall/Cancel；安装时调用 `duxinstall -c niri -t kitty -y` |
+| `just kitty-setup` | 管理 Kitty 配置 |
+| `just fcitx-setup` | 管理 Fcitx5、Rime 和雾凇拼音用户配置 |
+| `just fonts-setup` | 选择 Kitty 字体 |
+| `just nvim-setup` | 管理 LazyVim Starter |
+| `just user-dirs` | 固定英文 XDG 用户目录 |
+| `just cleanup` | 清空当前用户 HOME |
 
-检查初始化服务：
+配置安装会先备份模块管理的目标；卸载时删除目标当前内容并恢复备份。DMS 在启动 duxinstall 前备份 Niri、Quickshell 和 DMS 配置目录。请注意，卸载会恢复这些目录的安装前快照，安装后在这些目录里新增的个人修改也会被覆盖。
 
-```bash
-systemctl --user status fedora-niri-first-login.service
-journalctl --user -u fedora-niri-first-login.service -b
-```
+## cleanup 安全说明
 
-LazyVim 插件在第一次启动 `nvim` 时安装，需连接网络。Neovim 版本应满足 LazyVim 的最低要求（0.11.2）；Fedora 43 当前仓库提供的版本高于该要求。
+`just cleanup` 会要求输入 `RESET`，随后删除当前用户 HOME 下的所有文件和目录，包括个人文件、隐藏配置、应用数据、缓存、密钥及模块备份。它不会触碰系统镜像、系统软件包、系统服务或其他用户。不可撤销，执行前务必备份。
 
-## 字体
+## 英文 XDG 用户目录
 
-- `Cascadia Code Nerd Font`：用于 Kitty、Neovim 图标和终端提示符。
-- `google-noto-fonts-all`：Fedora 全局安装的 Google Noto 全字体家族，覆盖大量语言和文字系统。
+运行 `just user-dirs` 后，文档、下载、图片、音乐、视频、桌面、模板和公共目录将使用英文名称。命令更新 `~/.config/user-dirs.dirs`，并禁用按 locale 自动翻译目录名。若旧中文目录与目标英文目录同时存在，脚本会保留两者并提示，不会擅自合并。
 
-## DMS 与 Niri
-
-首次登录自己的 Niri 桌面后，以普通用户运行：
-
-```bash
-dms setup
-```
-
-这会生成 Niri 的 DMS 配置，并将 DMS systemd 用户服务绑定到 Niri 会话。不要再手动添加 `dms run`，否则可能启动两个实例。
-
-常用检查：
+## DMS 检查
 
 ```bash
 dms --help
@@ -42,97 +33,46 @@ systemctl --user status dms
 journalctl --user -u dms -b
 ```
 
+DMS 配置通过 `duxinstall -c niri -t kitty -y` 安装；这里不使用在当前不可变系统上会失败的 `dms setup`。
+
 ## DMS 可选功能
 
 | 组件 | 用途 | 启用方式 |
 | --- | --- | --- |
-| `danksearch`（命令 `dsearch`） | 文件名/内容搜索，DMS 启动器输入 `/` | `systemctl --user enable --now dsearch`，首次运行 `dsearch index generate` |
-| `dgop` | CPU、内存、GPU、温度等系统资源数据 | DMS 小组件直接读取 |
-| `cava` | 音频频谱可视化 | DMS 音频可视化小组件 |
-| `qt6-qtmultimedia` | Qt 音频播放/系统声音反馈 | DMS 使用 |
-| `power-profiles-daemon` | 电源模式切换 | 需要服务可用 |
-| `cups-pk-helper` | 打印机管理集成 | 需系统打印服务及打印机配置 |
-| `i2c-tools` | DDC/CI 外接显示器亮度控制 | 需显示器和硬件支持 |
-
-可选组件安装不代表每项硬件功能都必然可用；例如 DDC 亮度需要显示器支持，打印功能需要配置打印服务。
+| `danksearch`（命令 `dsearch`） | 文件名/内容搜索 | `systemctl --user enable --now dsearch`，首次运行 `dsearch index generate` |
+| `dgop` | 系统资源数据 | DMS 小组件读取 |
+| `cava` | 音频频谱 | DMS 音频小组件 |
+| `qt6-qtmultimedia` | Qt 音频 | DMS 使用 |
+| `power-profiles-daemon` | 电源模式 | 服务可用时使用 |
+| `cups-pk-helper` | 打印机集成 | 需配置打印服务 |
+| `i2c-tools` | DDC/CI 显示器亮度 | 需硬件支持 |
 
 ## DMS Greeter
 
-镜像包含 `greetd` 和 `dms-greeter`，并已写入 `/etc/greetd/config.toml`：
-
-```toml
-[terminal]
-vt = 1
-
-[default_session]
-user = "greeter"
-command = "/usr/bin/dms-greeter --command niri"
-```
-
-镜像已启用 `greetd.service`，因此它会作为登录管理器启动，并替代原有显示管理器。检查状态：
+镜像启用 greetd，配置文件为 `/etc/greetd/config.toml`。检查：
 
 ```bash
 systemctl status greetd
 dms-greeter status
+dms-greeter sync
 ```
-
-首次登录桌面后运行 `dms-greeter sync`，同步当前用户的 DMS 主题、壁纸和设置到登录界面。
 
 ## Fcitx5 / Rime
 
-- `fcitx5-autostart` 提供系统级 XDG 自动启动项和 Fedora 环境配置。
-- `/etc/skel/.config/autostart/org.fcitx.Fcitx5.desktop` 为新用户提供用户级启动项。
-- `/etc/environment.d/90-fcitx5.conf` 和用户 skeleton 中的同名配置提供环境变量。
-- 不设置全局 `GTK_IM_MODULE`，以免覆盖 GTK 原生 Wayland text-input-v3；Qt、XWayland 和 SDL 使用 Fcitx 对应变量。
-
-首次登录后打开 `fcitx5-configtool`，将 Rime 添加到输入法列表。雾凇拼音数据已预置到新用户的 Rime 目录。
-
-## 应用来源
-
-- 微信、腾讯会议、Linux QQ、Steam、Lutris：系统级 Flathub 应用。
-- Visual Studio Code：Microsoft 官方 RPM 仓库。
-- Microsoft Edge：通过微软 DNF 仓库安装 RPM。
-- Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。自动更新工作流每天检查稳定版，并在版本变化时更新镜像安装脚本。
-
-## QQ 与 Visual Studio Code
-
-- Linux QQ：通过 Flathub 系统级安装 `com.qq.QQ`。Flathub 将其标记为由 Tencent 开发，但该 Flatpak 包尚未通过 Tencent 验证，属于社区提供的打包。
-- Visual Studio Code：通过 Microsoft 官方 RPM 仓库安装 `code`，由 DNF 管理更新。
+Fcitx5 软件包已预装，但用户级 autostart、会话环境变量和雾凇拼音配置需运行 `just fcitx-setup`。环境变量完整生效需要重新登录图形会话。GTK 原生 Wayland 应用不强制设置 `GTK_IM_MODULE`。
 
 ## QEMU / KVM
 
-镜像预装以下组件：
-
-- `qemu-kvm`、`libvirt-daemon-kvm`：QEMU 和 KVM 虚拟化后端。
-- `libvirt-daemon-config-network`、`dnsmasq`：libvirt 虚拟网络/NAT。
-- `libvirt-client`、`virt-install`：命令行管理和虚拟机创建工具。
-- `virt-manager`、`virt-viewer`：图形化管理和控制台。
-- `edk2-ovmf`、`swtpm`：UEFI 固件和软件 TPM。
-
-系统启用了 Fedora 模块化 `virtqemud.service` 和 `virtnetworkd.socket`；QEMU 管理守护进程启动时运行，网络守护进程按需启动。确认 CPU 虚拟化扩展（Intel VT-x / AMD-V）已在 BIOS/UEFI 中启用，然后检查：
+镜像包含 QEMU/KVM、libvirt、virt-manager、virt-install、OVMF 和 swtpm。检查：
 
 ```bash
 virt-host-validate
 virsh -c qemu:///system list --all
 ```
 
-打开图形管理器：
-
-```bash
-virt-manager
-```
-
-首次使用默认 NAT 网络时执行：
+首次使用默认 NAT 网络：
 
 ```bash
 sudo virsh net-autostart default
 sudo virsh net-start default
 ```
-
-检查网络：
-
-```bash
-virsh -c qemu:///system net-list --all
-```
-
-virt-manager 默认连接系统级 QEMU/KVM（`qemu:///system`）。通过 polkit 授权管理虚拟机；不需要把日常用户加入 root 组。

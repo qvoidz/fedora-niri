@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${HOME:?HOME is not set}"
+
+cat <<'EOF'
+此操作会删除当前用户 HOME 目录中的所有内容，包括：
+  - 文档、下载、图片、视频等个人文件
+  - .config、.local、.cache 等用户配置、应用数据和缓存
+  - SSH/GPG 密钥、浏览器数据、Neovim/Kitty/Fcitx/DMS 配置
+  - 本项目各配置模块的备份和安装记录
+
+不会修改 /usr、/etc、RPM-OSTree 部署、系统软件包或其他用户。
+此操作不可撤销。请先备份需要保留的数据。
+EOF
+printf '\n输入 RESET 确认清空 %s ：' "$HOME"
+IFS= read -r answer
+[[ "$answer" == RESET ]] || { echo "已取消，未删除任何内容。"; exit 0; }
+find "$HOME" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+echo "当前用户 HOME 已清空。请注销并重新登录以重新生成桌面会话状态。"
