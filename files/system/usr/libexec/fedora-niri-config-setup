@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+module="${1:?missing module}"
+home="${HOME:?HOME is not set}"
+state_root="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
+backup="$state_root/backup"
+manifest="$state_root/manifest"
+
+paths_for() {
+  case "$module" in
+    kitty) printf '%s\n' '.config/kitty/kitty.conf' ;;
+    fonts) printf '%s\n' '.config/kitty/font-family.conf' ;;
+    fcitx) printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.local/share/fcitx5/rime' ;;
+    nvim) printf '%s\n' '.config/nvim' ;;
+    dms)
+      printf '%s\n' '.config/niri/dms' '.config/quickshell/dms' '.config/dms' '.config/environment.d/90-dms.conf' '.local/state/dms' '.cache/dms'
+      ;;
+    *) echo "Unknown setup module: $module" >&2; exit 2 ;;
+  esac
+}
+
+snapshot() {
+  mkdir -p "$backup/original"
+  : > "$manifest"
+  while IFS= read -r rel; do
+    if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
+      printf 'present\t%s\n' "$rel" >> "$manifest"
+      mkdir -p "$backup/original/$(dirname "$rel")"
+      cp -a -- "$home/$rel" "$backup/original/$rel"
+    else
+      printf 'absent\t%s\n' "$rel" >> "$manifest"
+    fi
+  done < <(paths_for)
+}
+
+restore() {
+  [[ -f "$manifest" ]] || return 0
+  while IFS=$'\t' read -r status rel; do
+    rm -rf -- "$home/$rel"
+    if [[ "$status" == present ]]; then
+      mkdir -p "$home/$(dirname "$rel")"
+      cp -a -- "$backup/original/$rel" "$home/$rel"
+    fi
+  done < "$manifest"
+}
+
+install_module() {
+  [[ ! -e "$state_root" ]] || { echo "该模块已有安装记录；请先选择 Uninstall。"; return 1; }
+  mkdir -p "$state_root"
+  snapshot
+  if ! do_install; then
+    echo "安装失败，正在恢复安装前配置……" >&2
+    restore
+    rm -rf "$state_root"
+    return 1
+  fi
+  touch "$state_root/installed"
+  echo "安装完成。"
+}
+
+uninstall_module() {
+  [[ -f "$state_root/installed" ]] || { echo "没有找到该模块的安装记录。"; return 1; }
+  if [[ "$module" == dms ]]; then
+    systemctl --user disable --now dms.service 2>/dev/null || true
+  elif [[ "$module" == fcitx ]]; then
+    fcitx5-remote -e 2>/dev/null || true
+  fi
+  restore
+  rm -rf "$state_root"
+  echo "已恢复安装前配置。"
+}
+
+do_install() {
+  case "$module" in
+    kitty)
+      mkdir -p "$home/.config/kitty"
+      cat > "$home/.config/kitty/kitty.conf" <<'EOF'
+# Managed by fedora-niri: kitty-setup
+include font-family.conf
+shell /usr/bin/fish
+background_opacity 0.8
+EOF
+      ;;
+    fonts)
+      command -v fc-list >/dev/null || { echo "缺少 fc-list（fontconfig 工具）。" >&2; return 1; }
+      mapfile -t choices < <(fc-list : family | sed 's/,.*//' | sed 's/^ *//;s/ *$//' | sort -u)
+      (("${#choices[@]}" > 0)) || { echo "没有检测到可用字体。" >&2; return 1; }
+      echo "选择 Kitty 使用的字体："
+      select selected in "${choices[@]}"; do
+        [[ -n "${selected:-}" ]] || { echo "无效选择，请重试。"; continue; }
+        mkdir -p "$home/.config/kitty"
+        printf '# Managed by fedora-niri: fonts-setup\nfont_family %s\n' "$selected" > "$home/.config/kitty/font-family.conf"
+        break
+      done
+      ;;
+    fcitx)
+      command -v git >/dev/null || { echo "需要 git 才能下载雾凇拼音。" >&2; return 1; }
+      mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.local/share/fcitx5"
+      cat > "$home/.config/environment.d/90-fcitx5.conf" <<'EOF'
+XMODIFIERS=@im=fcitx
+QT_IM_MODULE=fcitx
+QT_IM_MODULES=wayland;fcitx
+SDL_IM_MODULE=fcitx
+EOF
+      cat > "$home/.config/autostart/org.fcitx.Fcitx5.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Exec=fcitx5 -d
+X-GNOME-Autostart-enabled=true
+EOF
+      git clone --depth 1 https://github.com/iDvel/rime-ice.git "$home/.local/share/fcitx5/rime"
+      cat > "$home/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
+patch:
+  __include: rime_ice_suggestion:/
+EOF
+      fcitx5 -r >/dev/null 2>&1 || fcitx5 -d
+      echo "Fcitx5 已重启；环境变量需重新登录图形会话后完整生效。"
+      ;;
+    nvim)
+      command -v git >/dev/null || { echo "需要 git 才能下载 LazyVim。" >&2; return 1; }
+      mkdir -p "$home/.config"
+      git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
+      rm -rf "$home/.config/nvim/.git"
+      ;;
+    dms)
+      command -v dms >/dev/null || { echo "未找到 dms 命令。" >&2; return 1; }
+      dms setup
+      ;;
+  esac
+}
+
+echo "配置管理：$module"
+select action in Install Uninstall Cancel; do
+  case "$action" in
+    Install) install_module; break ;;
+    Uninstall) uninstall_module; break ;;
+    Cancel) echo "已取消，未修改任何文件。"; exit 0 ;;
+    *) echo "无效选择，请重试。" ;;
+  esac
+done
