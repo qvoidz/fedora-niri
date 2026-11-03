@@ -17,13 +17,12 @@ modules:
       copr:
         - avengemedia/dms
         - avengemedia/danklinux
-      files:
-        - https://packages.microsoft.com/yumrepos/edge/config.repo
+        - yalter/niri-git
     install:
       packages:
         - dms
         - dms-greeter
-        - niri
+        - niri-git
         - kitty
         - git
         - fcitx5
@@ -34,7 +33,6 @@ modules:
         - fcitx5-configtool
         - librime-lua
         - librime-octagram
-        - microsoft-edge-stable
     remove:
       packages:
         - firefox
@@ -50,6 +48,8 @@ modules:
         notify: true
         install:
           - com.tencent.WeChat
+          - com.tencent.wemeet
+          - com.visualstudio.code
           - com.valvesoftware.Steam
           - net.lutris.Lutris
       - scope: user
