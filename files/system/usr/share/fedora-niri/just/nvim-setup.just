@@ -1,3 +1,7 @@
-nvim-setup:
+nvim-setup yes="":
     #!/usr/bin/env bash
-    exec /usr/libexec/fedora-niri-config-setup nvim
+    if [ "{{yes}}" = "-y" ] || [ "{{yes}}" = "--yes" ]; then
+        exec /usr/libexec/fedora-niri-config-setup nvim --yes
+    else
+        exec /usr/libexec/fedora-niri-config-setup nvim
+    fi

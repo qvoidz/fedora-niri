@@ -1,69 +1,67 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 : "${HOME:?HOME is not set}"
+yes=false
+while (($#)); do
+  case "$1" in -y|--yes) yes=true ;; *) echo "未知参数：$1" >&2; exit 2 ;; esac
+  shift
+done
 
-cat <<'EOF'
-此操作会清理当前用户环境：
-  - 删除 HOME 中的个人配置、缓存和应用数据
-  - 可单独选择是否卸载用户级 Flatpak 应用及其数据
-  - 项目镜像预装的系统级 Flatpak 应用始终保留
-  - 不修改系统 RPM、系统镜像、系统配置或其他用户
-EOF
+ask() {
+  local label="$1" answer
+  if [[ "$yes" == true ]]; then return 0; fi
+  printf '%s [Y/n] ' "$label"
+  IFS= read -r answer || answer=""
+  case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+}
 
-printf '\n是否卸载用户级 Flatpak 应用及其数据？[Y/n] '
-IFS= read -r flatpak_answer
-case "${flatpak_answer,,}" in
-  n|no)
-    remove_user_flatpaks=false
-    echo "保留用户级 Flatpak 应用及其数据。"
-    ;;
-  y|yes|'')
-    remove_user_flatpaks=true
-    if command -v flatpak >/dev/null 2>&1; then
-      echo "正在卸载用户级 Flatpak 应用及其数据……"
-      flatpak uninstall --user --all --delete-data --assumeyes || {
-        echo "Flatpak 卸载命令失败；为避免误删 Flatpak 数据，已停止清理。" >&2
-        exit 1
-      }
-    else
-      echo "未找到 flatpak 命令，将继续清理 HOME 中的用户级 Flatpak 数据。"
-    fi
-    ;;
-  *)
-    echo "无效选择，已取消。" >&2
-    exit 1
-    ;;
-esac
+remove_user_flatpaks=false
+remove_config=false
+remove_cache=false
+remove_appdata=false
+remove_personal=false
 
-printf '\n即将清理当前用户 HOME：%s\n输入 RESET 确认：' "$HOME"
-IFS= read -r answer
-[[ "$answer" == RESET ]] || { echo "已取消，未清理 HOME。"; exit 0; }
+echo "清理当前用户环境。项目镜像预装的系统级 Flatpak、RPM、系统镜像和其他用户始终保留。"
+ask "删除用户配置（~/.config、shell 配置等）？" && remove_config=true
+ask "删除缓存（~/.cache）？" && remove_cache=true
+ask "删除用户应用数据（~/.local/share 中非 Flatpak 数据、~/.var/app）？" && remove_appdata=true
+ask "删除个人文件和下载内容（Documents、Downloads、Pictures 等及 HOME 其他普通文件）？" && remove_personal=true
+ask "卸载用户级 Flatpak 应用及其数据？" && remove_user_flatpaks=true
 
 if [[ "$remove_user_flatpaks" == true ]]; then
-  find "$HOME" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-else
-  # Preserve user-scoped Flatpak installations and app data only.
+  if command -v flatpak >/dev/null 2>&1; then
+    flatpak uninstall --user --all --delete-data --assumeyes
+  else
+    echo "未找到 flatpak 命令；将清理用户级 Flatpak 文件目录。"
+  fi
+fi
+
+# A final guard is kept even with -y because the operation can erase personal files.
+if [[ "$yes" != true ]]; then
+  printf '\n将按以上选择清理。输入 RESET 执行：'
+  IFS= read -r answer || answer=""
+  [[ "$answer" == RESET ]] || { echo "已取消。"; exit 0; }
+fi
+
+if [[ "$remove_config" == true ]]; then
+  rm -rf -- "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.gitconfig" "$HOME/.vimrc"
+fi
+if [[ "$remove_cache" == true ]]; then rm -rf -- "$HOME/.cache"; fi
+if [[ "$remove_appdata" == true ]]; then
+  rm -rf -- "$HOME/.var/app"
+  mkdir -p "$HOME/.local/share"
+  find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +
+  rm -rf -- "$HOME/.local/state"
+fi
+if [[ "$remove_personal" == true ]]; then
   for entry in "$HOME"/* "$HOME"/.[!.]* "$HOME"/..?*; do
     [[ -e "$entry" || -L "$entry" ]] || continue
     case "$entry" in
-      "$HOME/.local")
-        mkdir -p "$HOME/.local/share"
-        find "$HOME/.local" -mindepth 1 -maxdepth 1 ! -name share -exec rm -rf -- {} +
-        find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +
-        ;;
-      "$HOME/.var")
-        mkdir -p "$HOME/.var"
-        find "$HOME/.var" -mindepth 1 -maxdepth 1 ! -name app -exec rm -rf -- {} +
-        ;;
-      *)
-        rm -rf -- "$entry"
-        ;;
+      "$HOME/.config"|"$HOME/.cache"|"$HOME/.local"|"$HOME/.var") ;;
+      *) rm -rf -- "$entry" ;;
     esac
   done
 fi
-
-echo "当前用户环境清理完成。"
-if [[ "$remove_user_flatpaks" == false ]]; then
-  echo "已保留用户级 Flatpak 安装目录和应用数据。"
-fi
-echo "项目镜像预装的系统级 Flatpak 应用未被卸载。请注销并重新登录。"
+# Remove now-empty user state directories only; keep user Flatpak installation when requested.
+if [[ "$remove_user_flatpaks" == true ]]; then rm -rf -- "$HOME/.local/share/flatpak"; fi
+echo "清理完成。项目镜像预装的系统级 Flatpak 应用未被卸载。建议注销并重新登录。"
