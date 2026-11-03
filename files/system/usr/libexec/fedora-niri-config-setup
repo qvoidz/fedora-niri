@@ -70,6 +70,46 @@ rollback_install() {
   exit "$status"
 }
 
+
+kitty_added_file="$state_root/kitty-added-lines"
+kitty_created_file="$state_root/kitty-created-config"
+
+append_kitty_settings() {
+  local conf="$home/.config/kitty/kitty.conf" line key
+  shift 0
+  mkdir -p "$(dirname "$conf")"
+  [[ -e "$conf" ]] || touch "$conf"
+  : > "$kitty_added_file"
+  for line in "$@"; do
+    key="${line%% *}"
+    # Respect any existing setting for this key, including a user override.
+    if grep -Eq "^[[:space:]]*${key}([[:space:]]|$)" "$conf"; then
+      continue
+    fi
+    printf '%s\\n' "$line" >> "$conf"
+    printf '%s\\n' "$line" >> "$kitty_added_file"
+  done
+}
+
+remove_kitty_settings() {
+  local conf="$home/.config/kitty/kitty.conf" line tmp
+  [[ -f "$kitty_added_file" ]] || { echo "未找到 Kitty 配置变更记录；保留现有文件。"; return 0; }
+  if [[ -f "$conf" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      tmp="$(mktemp)"
+      awk -v target="$line" 'BEGIN { removed=0 } $0 == target && !removed { removed=1; next } { print }' "$conf" > "$tmp"
+      if cmp -s "$conf" "$tmp"; then
+        echo "检测到用户已修改或删除配置行，保留：$line" >&2
+      else
+        cat "$tmp" > "$conf"
+      fi
+      rm -f "$tmp"
+    done < "$kitty_added_file"
+    if [[ -f "$kitty_created_file" && ! -s "$conf" ]]; then rm -f "$conf"; fi
+  fi
+}
+
 confirm_action() {
   local prompt="$1" answer
   [[ "$yes" == true ]] && return 0
@@ -149,7 +189,7 @@ replace_kitty_block() {
 
 do_install() {
   case "$module" in
-    kitty) replace_kitty_block ;;
+    kitty)\n      local conf="$home/.config/kitty/kitty.conf"\n      [[ -e "$conf" ]] || touch "$kitty_created_file"\n      append_kitty_settings "shell /usr/bin/fish" "background_opacity 0.8"\n      ;;
     fonts)
       command -v fc-list >/dev/null || { echo "缺少 fc-list。" >&2; return 1; }
       mapfile -t choices < <(fc-list : family | sed 's/,.*//' | sed 's/^ *//;s/ *$//' | sort -u)
@@ -169,7 +209,7 @@ do_install() {
           echo "无效选择，请重试。"
         done
       fi
-      replace_kitty_block "$selected"
+      local conf="$home/.config/kitty/kitty.conf"\n      [[ -e "$conf" ]] || touch "$kitty_created_file"\n      append_kitty_settings "font_family $selected"
       ;;
     fcitx)
       command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
