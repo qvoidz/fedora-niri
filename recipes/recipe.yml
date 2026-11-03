@@ -93,6 +93,7 @@ modules:
     system:
       enabled:
         - greetd.service
+        - libvirtd.socket
     user:
       enabled:
         - fedora-niri-first-login.service
