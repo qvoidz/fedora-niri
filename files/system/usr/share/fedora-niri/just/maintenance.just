@@ -1,9 +1,15 @@
-# Destructive user-home reset. Requires typing RESET to continue.
-cleanup:
+cleanup yes="":
     #!/usr/bin/env bash
-    exec /usr/libexec/fedora-niri-cleanup
+    if [ "{{yes}}" = "-y" ] || [ "{{yes}}" = "--yes" ]; then
+        exec /usr/libexec/fedora-niri-cleanup --yes
+    else
+        exec /usr/libexec/fedora-niri-cleanup
+    fi
 
-# Pin XDG standard directories to English names, independent of UI language.
-user-dirs:
+user-dirs yes="":
     #!/usr/bin/env bash
-    exec /usr/libexec/fedora-niri-user-dirs
+    if [ "{{yes}}" = "-y" ] || [ "{{yes}}" = "--yes" ]; then
+        exec /usr/libexec/fedora-niri-user-dirs --yes
+    else
+        exec /usr/libexec/fedora-niri-user-dirs
+    fi
