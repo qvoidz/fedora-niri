@@ -86,7 +86,7 @@ GitHub Actions 会在 Pull Request、推送到仓库和定时任务时构建镜�
 
 ## QEMU / KVM 虚拟化
 
-镜像预装 QEMU/KVM、libvirt、Virtual Machine Manager（virt-manager）、virt-install、OVMF UEFI 固件、swtpm 和默认 NAT 网络所需组件。系统已启用 `libvirtd.socket`，libvirt 守护进程会在客户端连接时按需启动。
+镜像预装 QEMU/KVM、libvirt、Virtual Machine Manager（virt-manager）、virt-install、OVMF UEFI 固件、swtpm 和默认 NAT 网络所需组件。系统启用 Fedora 的模块化 `virtqemud.service` 和 `virtnetworkd.socket`：QEMU 虚拟机管理守护进程随系统启动，虚拟网络守护进程按需启动。
 
 首次使用前确认固件中已开启 Intel VT-x 或 AMD-V。启动 virt-manager 后连接系统级 QEMU/KVM（`qemu:///system`）。检查虚拟化状态：
 
