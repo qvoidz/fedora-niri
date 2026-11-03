@@ -36,6 +36,8 @@ modules:
         - make
         - unzip
         - python3-neovim
+        # Global multilingual font coverage
+        - google-noto-fonts-all
         # DMS optional feature providers
         - danksearch
         - dgop
