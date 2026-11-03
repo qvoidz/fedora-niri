@@ -90,8 +90,8 @@ append_kitty_settings() {
     if grep -Eq "^[[:space:]]*${key}([[:space:]]|$)" "$conf"; then
       continue
     fi
-    printf '%s\\n' "$line" >> "$conf"
-    printf '%s\\n' "$line" >> "$kitty_added_file"
+    printf '%s\n' "$line" >> "$conf"
+    printf '%s\n' "$line" >> "$kitty_added_file"
   done
 }
 
