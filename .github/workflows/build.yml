@@ -1,8 +1,7 @@
 name: bluebuild
 on:
   schedule:
-    - cron:
-        "00 06 * * *"
+    - cron: "0 6 * * *"
   push:
     paths-ignore:
       - "**.md"
@@ -27,6 +26,33 @@ jobs:
         recipe:
           - recipe.yml
     steps:
+      - name: Check out image repository
+        uses: actions/checkout@v4
+
+      - name: Check out latest Dux Shell source
+        uses: actions/checkout@v4
+        with:
+          repository: duxlabs-dev/dux-shell
+          ref: master
+          path: .upstream/dux-shell
+
+      - name: Set up Go from upstream go.mod
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: .upstream/dux-shell/core/go.mod
+          cache: false
+
+      - name: Build duxinstall from upstream
+        working-directory: .upstream/dux-shell/core
+        run: |
+          set -euo pipefail
+          version="$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)"
+          mkdir -p "$GITHUB_WORKSPACE/files/system/usr/bin"
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=${version}" \
+            -o "$GITHUB_WORKSPACE/files/system/usr/bin/duxinstall" ./cmd/duxinstall
+          chmod 0755 "$GITHUB_WORKSPACE/files/system/usr/bin/duxinstall"
+          "$GITHUB_WORKSPACE/files/system/usr/bin/duxinstall" --help
+
       - name: Build Custom Image
         uses: blue-build/github-action@v1.13
         with:
