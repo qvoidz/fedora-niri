@@ -1,0 +1,1 @@
+fonts-setup:\n    #!/usr/bin/env bash\n    exec bash /usr/libexec/fedora-niri-config-setup fonts\n
