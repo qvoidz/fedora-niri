@@ -37,11 +37,6 @@ modules:
         - fcitx5-configtool
         - librime-lua
         - librime-octagram
-    # 移除基础镜像中预装的 Firefox
-    remove:
-      packages:
-        - firefox
-        - firefox-langpacks
 
   # 为新建用户预置雾凇拼音配置
   - type: script
