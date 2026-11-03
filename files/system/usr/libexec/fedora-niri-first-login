@@ -28,4 +28,7 @@ if [[ ! -e "${config_dir}/nvim" ]]; then
     mv "${tmp_dir}/nvim" "${config_dir}/nvim"
 fi
 
+# Deploy DMS defaults for Niri and Kitty without prompting or overwriting user configs.
+dms setup headless --compositor niri --terminal kitty --skip-existing
+
 touch "${state_file}"
