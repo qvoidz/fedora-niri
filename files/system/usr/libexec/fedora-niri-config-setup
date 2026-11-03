@@ -11,10 +11,13 @@ paths_for() {
   case "$module" in
     kitty) printf '%s\n' '.config/kitty/kitty.conf' ;;
     fonts) printf '%s\n' '.config/kitty/font-family.conf' ;;
-    fcitx) printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.local/share/fcitx5/rime' ;;
+    fcitx)
+      printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.local/share/fcitx5/rime'
+      ;;
     nvim) printf '%s\n' '.config/nvim' ;;
     dms)
-      printf '%s\n' '.config/niri/dms' '.config/quickshell/dms' '.config/dms' '.config/environment.d/90-dms.conf' '.local/state/dms' '.cache/dms'
+      # Snapshot complete DMS/Niri/Quickshell user configuration roots before duxinstall.
+      printf '%s\n' '.config/niri' '.config/quickshell' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
       ;;
     *) echo "Unknown setup module: $module" >&2; exit 2 ;;
   esac
@@ -46,13 +49,13 @@ restore() {
 }
 
 install_module() {
-  [[ ! -e "$state_root" ]] || { echo "该模块已有安装记录；请先选择 Uninstall。"; return 1; }
+  [[ ! -e "$state_root" ]] || { echo "该模块已有安装记录；请先选择 Uninstall。" >&2; return 1; }
   mkdir -p "$state_root"
   snapshot
   if ! do_install; then
     echo "安装失败，正在恢复安装前配置……" >&2
     restore
-    rm -rf "$state_root"
+    rm -rf -- "$state_root"
     return 1
   fi
   touch "$state_root/installed"
@@ -60,14 +63,14 @@ install_module() {
 }
 
 uninstall_module() {
-  [[ -f "$state_root/installed" ]] || { echo "没有找到该模块的安装记录。"; return 1; }
+  [[ -f "$state_root/installed" ]] || { echo "没有找到该模块的安装记录。" >&2; return 1; }
   if [[ "$module" == dms ]]; then
     systemctl --user disable --now dms.service 2>/dev/null || true
   elif [[ "$module" == fcitx ]]; then
     fcitx5-remote -e 2>/dev/null || true
   fi
   restore
-  rm -rf "$state_root"
+  rm -rf -- "$state_root"
   echo "已恢复安装前配置。"
 }
 
@@ -96,6 +99,7 @@ EOF
       ;;
     fcitx)
       command -v git >/dev/null || { echo "需要 git 才能下载雾凇拼音。" >&2; return 1; }
+      command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
       mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.local/share/fcitx5"
       cat > "$home/.config/environment.d/90-fcitx5.conf" <<'EOF'
 XMODIFIERS=@im=fcitx
@@ -107,10 +111,20 @@ EOF
 [Desktop Entry]
 Type=Application
 Name=Fcitx 5
-Exec=fcitx5 -d
-X-GNOME-Autostart-enabled=true
+Exec=/usr/bin/fcitx5 -d --replace
+Icon=fcitx
+Terminal=false
+Categories=System;
 EOF
-      git clone --depth 1 https://github.com/iDvel/rime-ice.git "$home/.local/share/fcitx5/rime"
+      if [[ ! -d "$home/.local/share/fcitx5/rime" ]]; then
+        tmp="$(mktemp -d)"
+        if ! git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then
+          rm -rf "$tmp"
+          return 1
+        fi
+        mv "$tmp/rime" "$home/.local/share/fcitx5/rime"
+        rmdir "$tmp"
+      fi
       cat > "$home/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
 patch:
   __include: rime_ice_suggestion:/
@@ -125,8 +139,8 @@ EOF
       rm -rf "$home/.config/nvim/.git"
       ;;
     dms)
-      command -v dms >/dev/null || { echo "未找到 dms 命令。" >&2; return 1; }
-      dms setup
+      command -v duxinstall >/dev/null || { echo "未找到 duxinstall 命令。" >&2; return 1; }
+      duxinstall -c niri -t kitty -y
       ;;
   esac
 }
