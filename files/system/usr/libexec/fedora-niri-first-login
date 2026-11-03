@@ -4,15 +4,24 @@ set -euo pipefail
 config_dir="${HOME}/.config"
 state_dir="${HOME}/.local/state"
 state_file="${state_dir}/fedora-niri-first-login"
+kitty_config="${config_dir}/kitty/kitty.conf"
+kitty_config_existed=false
 
 # Do not repeat completed initialization.
 [[ -e "${state_file}" ]] && exit 0
 
 mkdir -p "${config_dir}/kitty" "${state_dir}"
 
-# Install the default Kitty configuration only when the user has no config.
-if [[ ! -e "${config_dir}/kitty/kitty.conf" ]]; then
-    install -m 0644 /usr/share/fedora-niri/defaults/kitty.conf "${config_dir}/kitty/kitty.conf"
+# Preserve an existing Kitty configuration; only customize a new one.
+[[ -e "${kitty_config}" ]] && kitty_config_existed=true
+
+# Deploy DMS defaults for Niri and Kitty before applying Fedora Niri's Kitty overrides.
+dms setup headless --compositor niri --terminal kitty --skip-existing
+
+if [[ "${kitty_config_existed}" == false ]]; then
+    mkdir -p "${config_dir}/kitty"
+    touch "${kitty_config}"
+    cat /usr/share/fedora-niri/defaults/kitty.conf >> "${kitty_config}"
 fi
 
 # Bootstrap the official LazyVim starter only when Neovim has no existing config.
@@ -27,8 +36,5 @@ if [[ ! -e "${config_dir}/nvim" ]]; then
     rm -rf "${tmp_dir}/nvim/.git"
     mv "${tmp_dir}/nvim" "${config_dir}/nvim"
 fi
-
-# Deploy DMS defaults for Niri and Kitty without prompting or overwriting user configs.
-dms setup headless --compositor niri --terminal kitty --skip-existing
 
 touch "${state_file}"
