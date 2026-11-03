@@ -17,7 +17,7 @@ paths_for() {
     nvim) printf '%s\n' '.config/nvim' ;;
     dms)
       # Snapshot complete DMS/Niri/Quickshell user configuration roots before duxinstall.
-      printf '%s\n' '.config/niri' '.config/quickshell' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+      printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/fish' '.config/dms' '.config/systemd/user' '.local/share/dms' '.local/state/dms' '.cache/dms'
       ;;
     *) echo "Unknown setup module: $module" >&2; exit 2 ;;
   esac
@@ -70,6 +70,7 @@ uninstall_module() {
     fcitx5-remote -e 2>/dev/null || true
   fi
   restore
+  if [[ "$module" == dms ]]; then systemctl --user daemon-reload 2>/dev/null || true; fi
   rm -rf -- "$state_root"
   echo "已恢复安装前配置。"
 }
