@@ -97,8 +97,6 @@ modules:
         - greetd.service
         - virtqemud.service
         - virtnetworkd.socket
-    user:
-      enabled:
 
   - type: default-flatpaks
     configurations:
