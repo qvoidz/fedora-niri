@@ -15,6 +15,7 @@ modules:
         - yalter/niri-git
       files:
         - microsoft-edge.repo
+        - vscode.repo
       keys:
         - https://packages.microsoft.com/keys/microsoft.asc
     install:
@@ -58,6 +59,17 @@ modules:
         - librime-octagram
         # Applications
         - microsoft-edge-stable
+        # QEMU/KVM virtualization stack
+        - qemu-kvm
+        - libvirt-daemon-kvm
+        - libvirt-daemon-config-network
+        - libvirt-client
+        - virt-install
+        - virt-manager
+        - virt-viewer
+        - edk2-ovmf
+        - swtpm
+        - dnsmasq
 
   - type: files
     files:
@@ -92,7 +104,7 @@ modules:
         install:
           - com.tencent.WeChat
           - com.tencent.wemeet
-          - com.visualstudio.code
+          - com.qq.QQ
           - com.valvesoftware.Steam
           - net.lutris.Lutris
       - scope: user
