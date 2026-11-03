@@ -26,35 +26,14 @@
 
 ## 安装
 
-### 首次安装（从 Fedora 官方 Atomic 系统迁移）
-
-首次安装需要执行两次 Rebase。这不是安装两套系统，而是签名信任配置的引导过程：
-
-1. Fedora 官方原版系统尚未包含本镜像的 Cosign 公钥和验证策略，因此第一次必须临时跳过镜像签名验证，进入包含 `signing` 模块的自定义镜像。该模块会安装后续验证所需的公钥和策略。
-2. 重启进入自定义镜像后，系统已经具备签名验证配置。再执行一次签名 Rebase，确认镜像签名有效，并让系统后续使用受签名验证保护的镜像引用。
-
-第一次 Rebase：
+从 Fedora Silverblue 等 Fedora Atomic 系统切换到本镜像，直接使用 bootc：
 
 ```bash
-sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/qvoidz/fedora-niri:latest
-systemctl reboot
+sudo bootc switch ghcr.io/qvoidz/fedora-niri:latest
+sudo systemctl reboot
 ```
 
-重启并进入 Fedora Niri 后，执行第二次 Rebase：
-
-```bash
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/qvoidz/fedora-niri:latest
-systemctl reboot
-```
-
-### 后续更新
-
-完成上述首次引导后，更新镜像时只使用签名引用，不再使用 `ostree-unverified-registry:`：
-
-```bash
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/qvoidz/fedora-niri:latest
-systemctl reboot
-```
+执行一次切换并重启即可，不需要先切换到未签名镜像，也不需要执行两次 Rebase。
 
 ## 首次登录配置
 
@@ -92,13 +71,13 @@ Fcitx5 会随图形会话自动启动。镜像提供用户级 autostart 文件�
 
 ## 签名验证
 
-验证镜像签名：
+本仓库包含 Cosign 签名配置。需要手动验证镜像签名时，可使用仓库中的 `cosign.pub`：
 
 ```bash
 cosign verify --key cosign.pub ghcr.io/qvoidz/fedora-niri
 ```
 
-仓库中的 `cosign.pub` 是验证公钥。GitHub 仓库需要配置 Actions Secret `SIGNING_SECRET`（与 `cosign.pub` 配对的 Cosign 私钥），否则 BlueBuild 的签名阶段会失败。
+GitHub 仓库需要配置 Actions Secret `SIGNING_SECRET`（与 `cosign.pub` 配对的 Cosign 私钥），否则 BlueBuild 的签名阶段会失败。签名验证说明不属于首次切换步骤。
 
 ## 构建与更新
 
