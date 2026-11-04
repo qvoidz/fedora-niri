@@ -63,6 +63,13 @@ set -Eeuo pipefail
 case "${1:-}" in
   -e) rm -f -- "$FCITX_RUNNING" ;;
   -r) : ;;
+  -l)
+    if [[ -n "${FCITX_METHODS:-}" ]]; then
+      printf '%s\\n' "$FCITX_METHODS"
+    else
+      printf 'rime\\nkeyboard-us\\n'
+    fi
+    ;;
   -s)
     [[ "${2:-}" == rime ]] || exit 91
     printf 'rime\n' > "$FCITX_CURRENT"
@@ -71,11 +78,15 @@ case "${1:-}" in
   *) echo "Unexpected mock fcitx5-remote arguments: $*" >&2; exit 92 ;;
 esac
 MOCK
+cat > "$mock_bin/rpm" <<'MOCK'
+#!/usr/bin/env bash
+[[ "${1:-}" == -q && "${2:-}" == fcitx5-rime ]]
+MOCK
 cat > "$mock_bin/pgrep" <<'MOCK'
 #!/usr/bin/env bash
 [[ -f "$FCITX_RUNNING" ]]
 MOCK
-chmod +x "$mock_bin/fcitx5" "$mock_bin/fcitx5-remote" "$mock_bin/pgrep"
+chmod +x "$mock_bin/fcitx5" "$mock_bin/fcitx5-remote" "$mock_bin/rpm" "$mock_bin/pgrep"
 
 fcitx_home="$test_root/fcitx-home"
 mkdir -p "$fcitx_home/.config/fcitx5"
@@ -111,6 +122,8 @@ grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
 [[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
 [[ -s "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log" ]]
 grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
+[[ -s "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log" ]]
+grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
 
 HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
@@ -123,6 +136,18 @@ grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
 # Fcitx remains an explicit Just action; it must not be wired into login init.
 ! grep -Fq 'run_setup fcitx-setup' "$init_script"
 grep -Fq 'run_setup nvim-setup' "$init_script"
+
+# A profile entry must not be treated as proof that the Rime engine exists.
+missing_rime_home="$test_root/missing-rime-home"
+mkdir -p "$missing_rime_home"
+set +e
+HOME="$missing_rime_home" XDG_STATE_HOME="$test_root/missing-rime-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" FCITX_METHODS=keyboard-us \
+  bash "$fcitx_test" --yes
+missing_rime_status=$?
+set -e
+[[ "$missing_rime_status" -ne 0 ]]
+grep -Fq 'Rime engine is not registered' "$test_root/missing-rime-state/fedora-niri/logs/fcitx-setup.log"
 
 # A profile entry must not be treated as proof that the Rime engine exists.
 missing_rime_home="$test_root/missing-rime-home"
