@@ -3,8 +3,8 @@ set -Eeuo pipefail
 source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
-  # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  # Kitty is managed independently by kitty-setup, not by DMS snapshots.
+  printf '%s\n' '.config/niri' '.config/quickshell' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
 }
 
 before_uninstall() {
