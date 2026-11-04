@@ -23,7 +23,7 @@ config_setup_main() {
   fi
 
   snapshot() {
-    local staging="$state_root/.snapshot.$"
+    local staging="$state_root/.snapshot.$BASHPID"
     rm -rf -- "$staging"
     mkdir -p "$staging/backup/original"
 
@@ -48,99 +48,8 @@ config_setup_main() {
 
   restore() {
     [[ -f "$manifest" ]] || return 0
-    local status rel source parent name staging
-    while IFS=
-
-  rollback_install() {
-    local status=$?
-    if [[ "$in_install" == true ]]; then
-      trap - EXIT INT TERM HUP
-      echo "安装未正常完成，正在恢复安装前配置……" >&2
-      if declare -F rollback_install_extra >/dev/null; then
-        rollback_install_extra || echo "警告：模块回滚失败，记录仍保留在 $state_root" >&2
-      else
-        restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2
-      fi
-      rm -f "$state_root/installed" "$state_root/installing"
-      [[ -f "$manifest" ]] && touch "$state_root/failed"
-    fi
-    exit "$status"
-  }
-
-  confirm_action() {
-    local prompt="$1" answer
-    [[ "$yes" == true ]] && return 0
-    printf '%s [Y/n] ' "$prompt"
-    IFS= read -r answer || answer=""
-    case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
-  }
-
-  install_module() {
-    if [[ -f "$state_root/installed" ]]; then
-      echo "该模块已安装。"
-      return 0
-    fi
-    if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-      echo "发现上次未完成的安装，先恢复原始配置并清理旧状态。"
-      restore
-      rm -rf "$state_root"
-    elif [[ -e "$state_root" ]]; then
-      echo "发现不完整的旧状态目录，正在恢复并清理。"
-      restore
-      rm -rf "$state_root"
-    fi
-
-    mkdir -p "$state_root"
-    touch "$state_root/installing"
-    in_install=true
-    trap rollback_install EXIT INT TERM HUP
-    snapshot
-    do_install
-    touch "$state_root/installed"
-    rm -f "$state_root/installing" "$state_root/failed"
-    in_install=false
-    trap - EXIT INT TERM HUP
-    echo "安装完成。"
-  }
-
-  uninstall_module() {
-    if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
-      echo "没有找到该模块的安装记录。"
-      return 1
-    fi
-    if [[ -f "$state_root/installed" && "$yes" != true ]]; then
-      confirm_action "确认卸载 $module 并恢复安装前配置？" || { echo "已取消。"; return 0; }
-    fi
-    if declare -F before_uninstall >/dev/null; then
-      before_uninstall
-    fi
-    restore
-    if declare -F after_uninstall >/dev/null; then
-      after_uninstall
-    fi
-    rm -rf -- "$state_root"
-    echo "已恢复安装前配置。"
-  }
-
-  echo "配置管理：$module"
-  if [[ "$yes" == true ]]; then
-    if [[ -f "$state_root/installed" ]]; then
-      echo "该模块已安装。"
-      exit 0
-    fi
-    install_module
-    exit $?
-  fi
-  select action in Install Uninstall Cancel; do
-    case "$action" in
-      Install) install_module; break ;;
-      Uninstall) uninstall_module; break ;;
-      Cancel) echo "已取消，未修改任何文件。"; exit 0 ;;
-      *) echo "无效选择，请重试。" ;;
-    esac
-  done
-}
-\\t' read -r status rel; do
+    local status rel source parent staging
+    while IFS=$'\t' read -r status rel; do
       [[ -n "$rel" ]] || continue
       case "$status" in
         present)
@@ -150,7 +59,6 @@ config_setup_main() {
             return 1
           fi
           parent="$home/$(dirname "$rel")"
-          name="$(basename "$rel")"
           mkdir -p "$parent"
           staging="$(mktemp -d "$parent/.config-setup-restore.XXXXXX")"
           if ! cp -a -- "$source" "$staging/item"; then
@@ -158,10 +66,10 @@ config_setup_main() {
             return 1
           fi
           if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
-            mv -- "$home/$rel" "$staging/previous" || {
+            if ! mv -- "$home/$rel" "$staging/previous"; then
               rm -rf -- "$staging"
               return 1
-            }
+            fi
           fi
           if ! mv -- "$staging/item" "$home/$rel"; then
             if [[ -e "$staging/previous" || -L "$staging/previous" ]]; then
@@ -193,6 +101,7 @@ config_setup_main() {
       else
         restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2
       fi
+      rm -rf -- "$state_root"/.snapshot.*
       rm -f "$state_root/installed" "$state_root/installing"
       [[ -f "$manifest" ]] && touch "$state_root/failed"
     fi
@@ -223,10 +132,10 @@ config_setup_main() {
     fi
 
     mkdir -p "$state_root"
-    snapshot
     touch "$state_root/installing"
     in_install=true
     trap rollback_install EXIT INT TERM HUP
+    snapshot
     do_install
     touch "$state_root/installed"
     rm -f "$state_root/installing" "$state_root/failed"
