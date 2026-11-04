@@ -1,0 +1,7 @@
+# Dux Greeter session launched by greetd.
+[terminal]
+vt = 1
+
+[default_session]
+user = "greeter"
+command = "/usr/bin/dms-greeter --command niri"
