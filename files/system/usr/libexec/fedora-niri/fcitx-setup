@@ -15,11 +15,13 @@ do_install() {
   command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
   command -v fcitx5-remote >/dev/null || { echo "未找到 fcitx5-remote。" >&2; return 1; }
   mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.config/fcitx5" "$home/.local/share/fcitx5"
+
   cat > "$home/.config/environment.d/90-fcitx5.conf" <<'EOF'
 XMODIFIERS=@im=fcitx
 QT_IM_MODULE=fcitx
 SDL_IM_MODULE=fcitx
 EOF
+
   cat > "$home/.config/autostart/org.fcitx.Fcitx5.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
@@ -29,16 +31,25 @@ Icon=fcitx
 Terminal=false
 Categories=System;
 EOF
-  if [[ ! -d "$home/.local/share/fcitx5/rime" ]]; then
+
+  local rime_dir="$home/.local/share/fcitx5/rime"
+  if [[ -d "$rime_dir/.git" ]]; then
+    echo "正在更新雾凇拼音配置……"
+    git -C "$rime_dir" pull --ff-only
+  elif [[ -e "$rime_dir" ]]; then
+    echo "Rime 配置目录已存在但不是 Git 仓库，拒绝覆盖：$rime_dir" >&2
+    return 1
+  else
     local tmp
     tmp="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")"
     if ! git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then
       rm -rf "$tmp"
       return 1
     fi
-    mv "$tmp/rime" "$home/.local/share/fcitx5/rime"
+    mv "$tmp/rime" "$rime_dir"
     rmdir "$tmp"
   fi
+
   cat > "$home/.config/fcitx5/profile" <<'EOF'
 [Groups/0]
 Name=Default
@@ -57,12 +68,13 @@ Name=rime
 [Groups]
 0=Default
 EOF
+
   if pgrep -u "$(id -u)" -x fcitx5 >/dev/null 2>&1; then
     fcitx5-remote -r >/dev/null 2>&1 || true
   else
     nohup fcitx5 -d --replace >/dev/null 2>&1 </dev/null &
   fi
-  echo "已部署 Rime 并将 rime 加入 Fcitx5 输入法组；会话环境变量需重新登录后生效。"
+  echo "已更新雾凇拼音并配置 Fcitx5；会话环境变量需重新登录后生效。"
 }
 
 config_setup_main fcitx "$@"
