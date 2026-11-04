@@ -26,6 +26,7 @@ config_setup_main() {
     local staging="$state_root/.snapshot.$BASHPID"
     rm -rf -- "$staging"
     mkdir -p "$staging/backup/original"
+    : > "$staging/manifest"
 
     while IFS= read -r rel; do
       [[ -n "$rel" ]] || continue
