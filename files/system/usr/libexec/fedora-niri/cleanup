@@ -60,27 +60,38 @@ remove_paths() {
 }
 
 remove_flatpaks() {
-  local flatpak_config="/usr/share/bluebuild/default-flatpaks/configuration.yml"
-  local flatpak_allowlist scope app_id app_data
+  local flatpak_config="" flatpak_allowlist scope app_id app_data
   local -a preserved_flatpaks=()
   if ! command -v flatpak >/dev/null 2>&1; then
     echo "WARNING: flatpak command not found; skipping Flatpak cleanup."
     return 0
   fi
-  if [[ ! -r "$flatpak_config" ]]; then
-    echo "ERROR: BlueBuild Flatpak configuration not found; refusing Flatpak removal." >&2
-    cleanup_errors+=("Flatpak allowlist configuration")
-    return 1
+  # BlueBuild default-flatpaks v2 uses configuration.yaml and a configurations[] list.
+  # Keep the legacy .yml/v1 layout as a fallback for older images.
+  for flatpak_config in \
+    /usr/share/bluebuild/default-flatpaks/configuration.yaml \
+    /usr/share/bluebuild/default-flatpaks/configuration.yml; do
+    [[ -r "$flatpak_config" ]] && break
+    flatpak_config=""
+  done
+  if [[ -z "$flatpak_config" ]]; then
+    echo "WARNING: BlueBuild Flatpak allowlist was not found; skipping Flatpak removal to protect declared applications."
+    return 0
   fi
   if ! command -v yq >/dev/null 2>&1; then
-    echo "ERROR: yq command not found; cannot read the BlueBuild Flatpak allowlist." >&2
-    cleanup_errors+=("Flatpak allowlist parser")
-    return 1
+    echo "WARNING: yq was not found; skipping Flatpak removal because the allowlist cannot be read safely."
+    return 0
   fi
-  if ! flatpak_allowlist="$(yq -r '.system.install[]?, .user.install[]?' "$flatpak_config")"; then
-    echo "ERROR: Failed to read the BlueBuild Flatpak allowlist." >&2
-    cleanup_errors+=("Flatpak allowlist parsing")
-    return 1
+  if grep -Eq '^[[:space:]]*configurations:' "$flatpak_config"; then
+    if ! flatpak_allowlist="$(yq -r '.configurations[]?.install[]?' "$flatpak_config")"; then
+      echo "WARNING: Failed to parse the BlueBuild v2 Flatpak allowlist; skipping Flatpak removal."
+      return 0
+    fi
+  else
+    if ! flatpak_allowlist="$(yq -r '.system.install[]?, .user.install[]?' "$flatpak_config")"; then
+      echo "WARNING: Failed to parse the legacy BlueBuild Flatpak allowlist; skipping Flatpak removal."
+      return 0
+    fi
   fi
   mapfile -t preserved_flatpaks < <(printf '%s\\n' "$flatpak_allowlist" | sed 's#//.*$##' | sed '/^[[:space:]]*$/d')
 
