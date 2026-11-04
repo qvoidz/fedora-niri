@@ -2,6 +2,12 @@
 set -Eeuo pipefail
 source /usr/libexec/fedora-niri/config-setup
 
+rime_staging=""
+
+rollback_install_extra() {
+  [[ -z "$rime_staging" ]] || rm -rf -- "$rime_staging"
+}
+
 paths_for() {
   printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.config/fcitx5/profile' '.config/fcitx5/config' '.local/share/fcitx5/rime'
 }
@@ -146,21 +152,24 @@ update_rime_config() {
     echo "ERROR: Rime directory exists but is not a Git repository; refusing to overwrite: $rime_dir" >&2
     return 1
   else
-    tmp="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")"
-    if git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then
+    rime_staging="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")
+    if git clone --depth 1 https://github.com/iDvel/rime-ice.git "$rime_staging/rime"; then
       :
     else
       clone_status=$?
-      rm -rf -- "$tmp"
+      rm -rf -- "$rime_staging"
+      rime_staging=""
       echo "ERROR: Failed to clone https://github.com/iDvel/rime-ice.git (exit code $clone_status)." >&2
       return "$clone_status"
     fi
-    if ! mv -- "$tmp/rime" "$rime_dir"; then
-      rm -rf -- "$tmp"
+    if ! mv -- "$rime_staging/rime" "$rime_dir"; then
+      rm -rf -- "$rime_staging"
+      rime_staging=""
       echo "ERROR: Failed to install the Rime Ice configuration at $rime_dir." >&2
       return 1
     fi
-    rmdir -- "$tmp"
+    rmdir -- "$rime_staging"
+    rime_staging=""
   fi
 }
 
