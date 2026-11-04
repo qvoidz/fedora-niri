@@ -21,38 +21,46 @@ config_setup_main() {
   trap 'config_setup_error "$?" "${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
   declare -F config_setup_init >/dev/null && config_setup_init
 
+  resolve_managed_path() {
+    case "$1" in
+      /*) printf '%s\\n' "$1" ;;
+      *) printf '%s/%s\\n' "$home" "$1" ;;
+    esac
+  }
   snapshot_to() {
-    local destination="$1" staging="$state_root/.snapshot.$BASHPID"
+    local destination="$1" staging="$state_root/.snapshot.$BASHPID" source_path
     rm -rf -- "$staging"; mkdir -p "$staging/backup/original"; : > "$staging/manifest"
     while IFS= read -r rel; do
       [[ -n "$rel" ]] || continue
-      if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
+      source_path="$(resolve_managed_path "$rel")"
+      if [[ -e "$source_path" || -L "$source_path" ]]; then
         mkdir -p "$staging/backup/original/$(dirname "$rel")"
-        cp -a -- "$home/$rel" "$staging/backup/original/$rel"
+        cp -a -- "$source_path" "$staging/backup/original/$rel"
         printf 'present\t%s\n' "$rel" >> "$staging/manifest"
       else printf 'absent\t%s\n' "$rel" >> "$staging/manifest"; fi
     done < <(paths_for)
     rm -rf -- "$destination"; mkdir -p "$(dirname "$destination")"; mv -- "$staging" "$destination"
   }
   restore_from() {
-    local source_root="$1" status rel source parent staging
+    local source_root="$1" status rel source parent staging target
     [[ -f "$source_root/manifest" ]] || return 0
     while IFS=$'\t' read -r status rel; do
       [[ -n "$rel" ]] || continue
+      target="$(resolve_managed_path "$rel")"
       case "$status" in
         present)
           source="$source_root/backup/original/$rel"
           [[ -e "$source" || -L "$source" ]] || { echo "ERROR: Backup missing for $rel; refusing destructive restore." >&2; return 1; }
-          parent="$home/$(dirname "$rel")"; mkdir -p "$parent"
+          parent="$(dirname "$target")"; mkdir -p "$parent"
           staging="$(mktemp -d "$parent/.config-setup-restore.XXXXXX")"
           cp -a -- "$source" "$staging/item"
-          if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then mv -- "$home/$rel" "$staging/previous"; fi
-          if ! mv -- "$staging/item" "$home/$rel"; then
-            [[ -e "$staging/previous" || -L "$staging/previous" ]] && mv -- "$staging/previous" "$home/$rel" || true
+          if [[ -e "$target" || -L "$target" ]]; then mv -- "$target" "$staging/previous"; fi
+          if ! mv -- "$staging/item" "$target"; then
+            [[ -e "$staging/previous" || -L "$staging/previous" ]] && mv -- "$staging/previous" "$target" || true
             rm -rf -- "$staging"; return 1
           fi
           rm -rf -- "$staging" ;;
-        absent) rm -rf -- "$home/$rel" ;;
+        absent) rm -rf -- "$target" ;;
         *) echo "ERROR: Unknown backup state: $status ($rel)" >&2; return 1 ;;
       esac
     done < "$source_root/manifest"
