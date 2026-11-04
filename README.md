@@ -32,7 +32,7 @@ sudo systemctl reboot
 just
 ```
 
-查看可用任务。配置任务均提供 **Install / Uninstall / Cancel** 菜单：
+查看可用任务。`dms-setup`、`kitty-setup`、`fcitx-setup`、`fonts-setup` 和 `nvim-setup` 提供 **Install / Uninstall / Cancel** 菜单；`cleanup` 与 `user-dirs` 是独立操作：
 
 | 命令 | 用途 |
 | --- | --- |
