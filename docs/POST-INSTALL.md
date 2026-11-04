@@ -2,7 +2,7 @@
 
 ## 脚本布局
 
-功能脚本集中在 `/usr/libexec/fedora-niri/`，每个 Just 命令对应一个同名脚本；全局命令入口统一放在 `/usr/share/fedora-niri/Justfile`。配置类脚本共用 `config-setup` 处理备份、恢复和安装状态，具体功能由 `fonts-setup`、`kitty-setup`、`dms-setup`、`fcitx-setup` 和 `nvim-setup` 分别调用。
+功能脚本集中在 `/usr/libexec/fedora-niri/`，每个 Just 命令对应一个独立脚本；全局命令入口统一放在 `/usr/share/fedora-niri/Justfile`。`config-setup` 只提供通用的备份、恢复、安装状态、交互和失败回滚机制；字体、Kitty、DMS、Fcitx5 和 Neovim 的具体操作分别实现在各自的 `*-setup` 脚本中。`cleanup` 和 `user-dirs` 是独立脚本，不依赖配置管理核心。
 
 ## 普通 Just 命令
 
