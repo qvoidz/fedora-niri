@@ -72,8 +72,25 @@ rollback_install_extra() {
   return "$result"
 }
 
+# dms-greeter reads /etc/greetd/config.toml directly as the invoking user
+# (dux-greeter has no sudo/SELinux fallback for this read), so the file must
+# stay world-readable and correctly labeled; otherwise the install aborts with
+# "failed to read greetd config: permission denied".
+ensure_greetd_config_readable() {
+  sudo test -e /etc/greetd/config.toml || return 0
+  if ! head -c 1 /etc/greetd/config.toml >/dev/null 2>&1; then
+    sudo chmod 0755 /etc/greetd
+    sudo chmod 0644 /etc/greetd/config.toml
+    echo "Normalized /etc/greetd/config.toml permissions (was unreadable by the current user)."
+  fi
+  if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled && command -v restorecon >/dev/null 2>&1; then
+    sudo restorecon -R /etc/greetd 2>/dev/null || true
+  fi
+}
+
 configure_greetd_locale() {
   local config=/etc/greetd/config.toml
+  ensure_greetd_config_readable
   [[ -f "$config" ]] || {
     echo "ERROR: DMS Greeter did not create $config." >&2
     return 1
@@ -143,7 +160,11 @@ do_install() {
     fi
   fi
   touch "$state_root/greeter-installing"
-  dms-greeter install --yes
+  ensure_greetd_config_readable
+  dms-greeter install --yes || {
+    ensure_greetd_config_readable
+    dms-greeter install --yes
+  }
   touch "$state_root/greeter-configured"
   rm -f "$state_root/greeter-installing"
   configure_greetd_locale
