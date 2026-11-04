@@ -1,5 +1,5 @@
-cleanup:
-    exec /usr/libexec/fedora-niri-cleanup
+cleanup yes="":
+    exec /usr/libexec/fedora-niri-cleanup {{yes}}
 
 user-dirs yes="":
     #!/usr/bin/env bash
