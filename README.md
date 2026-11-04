@@ -23,7 +23,7 @@ sudo systemctl reboot
 
 首次登录时，systemd 用户服务运行 \`/usr/libexec/fedora-niri/init\`：
 
-1. 首次初始化执行一次 \`cleanup -y\`。它会清理 HOME 中的大部分个人数据，包括 SSH/GPG 密钥；执行前请备份。恢复状态目录 \`~/.local/state/fedora-niri\` 会保留。
+1. 首次初始化执行一次 \`cleanup -y\`。它会清理 HOME 中的大部分个人数据，包括 SSH/GPG 密钥；执行前请备份。自动执行的 \`-y\` 会保留 \`~/.local/state/fedora-niri\` 恢复数据。手动交互清理时，在 state 确认提示输入 \`y\` 会删除整个 \`$XDG_STATE_HOME\`（默认 \`~/.local/state\`），包括恢复记录和升级备份。
 2. 按顺序部署 Niri、DMS、Kitty、Neovim 配置。
 3. 使用当前 booted OSTree deployment checksum 判断系统是否升级，不依赖可变的镜像标签。
 4. 新部署会先备份受管理的用户配置，再刷新配置；升级不会再次执行完整清理。
