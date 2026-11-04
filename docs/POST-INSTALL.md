@@ -10,7 +10,7 @@
 
 | 命令 | 说明 |
 | --- | --- |
-| `just dms-setup` | Install/Uninstall/Cancel；安装时调用 `duxinstall -c niri -t kitty -y` |
+| `just dms-setup` | Install/Uninstall/Cancel；安装时调用 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y`，启用全部 Dux 可选组件但明确排除 Dux Files |
 | `just kitty-setup` | 管理 Kitty 配置 |
 | `just fcitx-setup` | 管理 Fcitx5、Rime 和雾凇拼音用户配置 |
 | `just fonts-setup` | 设置 DMS 默认界面字体（`fontFamily`），不修改 Kitty 字体 |
@@ -23,7 +23,7 @@
 
 ## cleanup 清理说明
 
-运行 `just cleanup` 时，脚本会分别询问是否删除以下内容；每项输入 `y` 或 `yes` 才会删除，直接回车默认保留：
+运行 `just cleanup` 时，脚本会分别询问是否删除以下内容；提示为 `[Y/n]`，输入 `n` 或 `no` 才会保留，直接回车默认为确认删除：
 
 - 用户配置：`~/.config` 和常见 Shell、Git、Vim 配置文件。
 - 缓存：`~/.cache`。
@@ -32,7 +32,7 @@
 - HOME 中其他个人文件和隐藏目录：包括可能存在的 SSH/GPG 密钥、浏览器数据及其他应用配置。
 - 用户级 Flatpak：卸载当前用户安装的 Flatpak 应用并删除其数据。
 
-`just cleanup -y` 会跳过所有问题，直接执行以上全部清理类别。它可能删除 HOME 中几乎所有个人数据和密钥，且不可撤销；使用前务必备份。无论是否使用 `-y`，都不会删除系统级 Flatpak、RPM、系统镜像或其他用户的数据。不要在不确定时使用 `-y`。
+`just cleanup -- -y` 会将 `-y` 参数传递给清理脚本，跳过所有问题并直接执行以上全部清理类别。它可能删除 HOME 中几乎所有个人数据和密钥，且不可撤销；使用前务必备份。无论是否使用 `-y`，都不会删除系统级 Flatpak、RPM、系统镜像或其他用户的数据。不要在不确定时使用 `-y`。
 
 ## 英文 XDG 用户目录
 
@@ -47,7 +47,7 @@ systemctl --user status dms
 journalctl --user -u dms -b
 ```
 
-DMS 配置通过 `duxinstall -c niri -t kitty -y` 安装；这里不使用在当前不可变系统上会失败的 `dms setup`。
+DMS 配置通过 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y` 安装；这里不使用在当前不可变系统上会失败的 `dms setup`。`--all-features` 会启用 Dux Greeter、Dux Search、Dux Calendar 和 Dux Files，因此必须同时使用 `--exclude-deps dux-files`，以保留 Nautilus 作为文件管理器。
 
 ## DMS 可选功能
 
@@ -90,3 +90,21 @@ virsh -c qemu:///system list --all
 sudo virsh net-autostart default
 sudo virsh net-start default
 ```
+
+
+## Waydroid
+
+镜像预装 `waydroid` 并启用 `waydroid-container.service`，但不会自动初始化 Android 镜像。首次使用时选择镜像类型：
+
+```bash
+sudo waydroid init -s GAPPS
+```
+
+也可以将 `GAPPS` 替换为 `VANILLA` 或 `FOSS`。初始化完成后启动容器：
+
+```bash
+sudo systemctl start waydroid-container
+waydroid session start
+```
+
+Android 镜像存储在 `/var/lib/waydroid`，不会预先打包进 bootc 镜像。
