@@ -61,8 +61,8 @@ run_setup() {
   echo "Running $script..."
   bash "/usr/libexec/fedora-niri/$script" --refresh --yes
 }
-run_setup niri-setup
 run_setup dms-setup
+run_setup niri-setup
 run_setup kitty-setup
 run_setup nvim-setup
 
