@@ -92,11 +92,13 @@ keyboard_line="$(grep -n -m1 '^Name=keyboard-us$' "$profile" | cut -d: -f1)"
 [[ "$(cat "$FCITX_CURRENT")" == "rime" ]]
 grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
 grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
+grep -Fqx 'AltTriggerKeys=' "$fcitx_home/.config/fcitx5/config"
 [[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
 
 HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
 [[ ! -e "$fcitx_home/.config/fcitx5/profile" ]]
+[[ ! -e "$fcitx_home/.config/fcitx5/config" ]]
 [[ ! -e "$fcitx_home/.local/share/fcitx5/rime" ]]
 [[ ! -e "$fcitx_home/.config/environment.d/90-fcitx5.conf" ]]
 
