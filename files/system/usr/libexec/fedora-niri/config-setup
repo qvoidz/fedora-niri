@@ -7,7 +7,12 @@ config_setup_main() {
   setup_logging "$module-setup"
   yes=false; uninstall_only=false; refresh=false
   while (($#)); do
-    case "$1" in -y|--yes) yes=true ;; --uninstall) uninstall_only=true ;; --refresh) refresh=true ;; *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;; esac
+    case "$1" in
+      -y|--yes|yes|install) yes=true ;;
+      --uninstall|uninstall) uninstall_only=true ;;
+      --refresh) refresh=true ;;
+      *) echo "ERROR: Unknown argument: $1 (supported: install, uninstall, --yes, --uninstall, --refresh)" >&2; return 2 ;;
+    esac
     shift
   done
   state_root="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
@@ -168,7 +173,17 @@ config_setup_main() {
   echo "Managing configuration: $module"
   if [[ "$uninstall_only" == true ]]; then uninstall_module; exit $?; fi
   if [[ "$yes" == true ]]; then install_module; exit $?; fi
-  select action in Install Uninstall Cancel; do
-    case "$action" in Install) install_module; break ;; Uninstall) uninstall_module; break ;; Cancel) echo "Cancelled."; exit 0 ;; *) echo "Invalid selection." ;; esac
+  while :; do
+    echo "1) Install"
+    echo "2) Uninstall"
+    echo "3) Cancel"
+    printf 'Choose an action for %s [1-3, Enter=Install]: ' "$module"
+    IFS= read -r answer || { echo; install_module; exit $?; }
+    case "${answer,,}" in
+      ""|1|install|i) install_module; exit $? ;;
+      2|uninstall|u) uninstall_module; exit $? ;;
+      3|cancel|c|q) echo "Cancelled."; exit 0 ;;
+      *) echo "Invalid selection: $answer (enter 1, 2, 3 or press Enter for Install)" ;;
+    esac
   done
 }
