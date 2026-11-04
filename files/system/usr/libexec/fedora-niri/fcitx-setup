@@ -185,8 +185,8 @@ update_rime_config() {
   fi
 }
 
-start_fcitx() {
-  local uid attempt rime_addon
+stop_fcitx() {
+  local uid attempt
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
@@ -194,15 +194,20 @@ start_fcitx() {
     fcitx5-remote -e
     for attempt in {1..50}; do
       if ! pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
-        break
+        return 0
       fi
       sleep 0.2
     done
-    if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
-      echo "ERROR: The existing Fcitx5 daemon did not exit." >&2
-      return 1
-    fi
+    echo "ERROR: The existing Fcitx5 daemon did not exit." >&2
+    return 1
   fi
+}
+
+start_fcitx() {
+  local uid attempt rime_addon current
+  uid="$(id -u)"
+
+  stop_fcitx || return 1
 
   echo "Starting Fcitx5..."
   nohup fcitx5 -d >"$state_root/fcitx5.log" 2>&1 </dev/null &
@@ -234,9 +239,18 @@ start_fcitx() {
   fi
 
   printf 'Fcitx5 Rime addon detected: %s\n' "$rime_addon"
-  current="$(fcitx5-remote -n)"
+  current=""
+  for attempt in {1..25}; do
+    current="$(fcitx5-remote -n 2>/dev/null || true)"
+    [[ -n "$current" ]] && break
+    sleep 0.2
+  done
+  if [[ -z "$current" ]]; then
+    echo "WARNING: fcitx5-remote -n returned no input method name (no focused input context yet?). Skipping the runtime default check; the profile default remains keyboard-us."
+    return 0
+  fi
   if [[ "$current" != "keyboard-us" ]]; then
-    echo "ERROR: Fcitx5 did not keep keyboard-us as the default input method (current: ${current:-unknown}). Check the Fcitx5 profile." >&2
+    echo "ERROR: Fcitx5 did not keep keyboard-us as the default input method (current: $current). Check the Fcitx5 profile." >&2
     return 1
   fi
 }
@@ -252,6 +266,9 @@ after_already_installed() {
   command -v fcitx5-remote >/dev/null 2>&1 || { echo "ERROR: fcitx5-remote was not found." >&2; return 1; }
   command -v pgrep >/dev/null 2>&1 || { echo "ERROR: pgrep was not found." >&2; return 1; }
   update_rime_config
+  # Stop any running daemon before writing the profile: Fcitx5 rewrites the
+  # profile on exit and would otherwise clobber the freshly written file.
+  stop_fcitx
   write_profile
   clear_temporary_toggle_hotkey
   start_fcitx
@@ -271,6 +288,9 @@ do_install() {
   write_environment
   write_autostart
   update_rime_config
+  # Stop any running daemon before writing the profile: Fcitx5 rewrites the
+  # profile on exit and would otherwise clobber the freshly written file.
+  stop_fcitx
   write_profile
   clear_temporary_toggle_hotkey
   start_fcitx
