@@ -23,7 +23,9 @@ modules:
         - greetd
         - dms
         - dux-greeter
-        - niri
+        - repo: copr:copr.fedorainfracloud.org:yalter:niri-git
+          packages:
+            - niri
         - xwayland-satellite
         - libseat
 
@@ -60,7 +62,8 @@ modules:
         - google-noto-serif-fonts
         - google-noto-sans-mono-fonts
         - google-noto-sans-cjk-fonts
-        - google-noto-emoji-color-fonts
+        - google-noto-sans-mono-cjk-vf-fonts
+        - google-noto-color-emoji-fonts
 
         # ── Development tools ────────────────────────────────────────────
         - neovim
