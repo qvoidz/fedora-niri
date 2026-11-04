@@ -119,6 +119,9 @@ config_setup_main() {
 
   install_module() {
     if [[ -f "$state_root/installed" ]]; then
+      if declare -F after_already_installed >/dev/null; then
+        after_already_installed
+      fi
       echo "该模块已安装。"
       return 0
     fi
@@ -166,10 +169,6 @@ config_setup_main() {
 
   echo "配置管理：$module"
   if [[ "$yes" == true ]]; then
-    if [[ -f "$state_root/installed" ]]; then
-      echo "该模块已安装。"
-      exit 0
-    fi
     install_module
     exit $?
   fi
