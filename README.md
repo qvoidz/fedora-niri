@@ -60,10 +60,9 @@ just
 
 ### DankSearch
 
-Dux Search 已预装；首次使用时启用用户服务并生成索引：
+Dux Search 已预装；`just dms-setup` 会自动启用用户级服务，首次使用前生成索引：
 
 ```bash
-systemctl --user enable --now dsearch
 dsearch index generate
 ```
 
