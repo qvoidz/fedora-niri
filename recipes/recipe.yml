@@ -50,7 +50,7 @@ modules:
         - nautilus-open-any-terminal
         - kitty
 
-        # ── System and session utilities ─────────────────────────────────
+        # ── System and session utilities ────────────────────────────────
         - NetworkManager
         - xdg-desktop-portal-gtk
         - xdg-desktop-portal-gnome
@@ -59,7 +59,7 @@ modules:
         - xdg-user-dirs
         - fish
 
-        # ── Fonts ────────────────────────────────────────────────────────
+        # ── Fonts ───────────────────────────────────────────────────────
         - google-noto-sans-fonts
         - google-noto-serif-fonts
         - google-noto-serif-cjk-fonts
@@ -68,7 +68,7 @@ modules:
         - google-noto-sans-mono-cjk-vf-fonts
         - google-noto-color-emoji-fonts
 
-        # ── Development tools ────────────────────────────────────────────
+        # ── Development tools ───────────────────────────────────────────
         - neovim
         - git
         - curl
@@ -80,7 +80,7 @@ modules:
         - unzip
         - python3-neovim
 
-        # ── Input method: Fcitx5 + Rime ──────────────────────────────────
+        # ── Input method: Fcitx5 + Rime ─────────────────────────────────
         - fcitx5
         - fcitx5-gtk
         - fcitx5-qt
@@ -89,14 +89,14 @@ modules:
         - librime-lua
         - librime-octagram
 
-        # ── Applications ─────────────────────────────────────────────────
+        # ── Applications ────────────────────────────────────────────────
         - microsoft-edge-stable
         - code
 
-        # ── Android container ────────────────────────────────────────────
+        # ── Android container ───────────────────────────────────────────
         - waydroid
 
-        # ── Virtualization: QEMU / KVM ───────────────────────────────────
+        # ── Virtualization: QEMU / KVM ──────────────────────────────────
         - qemu-kvm
         - libvirt-daemon-kvm
         - libvirt-daemon-config-network
@@ -116,7 +116,6 @@ modules:
   - type: fonts
     fonts:
       nerd-fonts:
-        - CascadiaCode
         - JetBrainsMono
 
   - type: script
