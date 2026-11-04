@@ -1,0 +1,11 @@
+[Unit]
+Description=Initialize Fedora Niri user configuration
+After=graphical-session-pre.target
+ConditionPathIsExecutable=/usr/libexec/fedora-niri/init
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/fedora-niri/init
+
+[Install]
+WantedBy=default.target
