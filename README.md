@@ -32,19 +32,19 @@ sudo systemctl reboot
 just
 ```
 
-查看可用任务。`dms-setup`、`kitty-setup`、`fcitx-setup`、`fonts-setup` 和 `nvim-setup` 提供 **Install / Uninstall / Cancel** 菜单；`cleanup` 与 `user-dirs` 是独立操作：
+查看可用任务。`dms-setup`、`kitty-setup`、`fcitx-setup` 和 `nvim-setup` 提供 **Install / Uninstall / Cancel** 菜单；`cleanup` 与 `user-dirs` 是独立操作：
 
 | 命令 | 用途 |
 | --- | --- |
-| `just dms-setup` | 部署 DMS/Niri/Kitty 配置、启用 Dux 全部可选组件（排除 Dux Files），并配置 Nautilus 的 Kitty 右键终端 |
+| `just dms-setup` | 配置 Dux 的 Niri/Kitty 桌面环境、初始化 DMS Greeter、设置 DMS 默认字体，并配置 Nautilus 的 Kitty 右键终端（不负责安装系统 RPM） |
 | `just kitty-setup` | 管理 Kitty 配置（Fish shell、透明度） |
-| `just fcitx-setup` | 部署 Fcitx5 自动启动、会话环境变量和雾凇拼音 |
+| `just fcitx-setup` | 配置 Fcitx5 自动启动、会话环境变量和雾凇拼音；每次运行都会 fast-forward 更新已有的雾凇拼音 Git 仓库 |
 | `just fonts-setup` | 从已安装字体中选择 DMS 默认界面字体 |
 | `just nvim-setup` | 安装 LazyVim 官方 Starter |
 | `just user-dirs` | 将 XDG 文档、下载、图片等标准目录固定为英文名称 |
 | `just cleanup` | 按类别清理当前用户配置、缓存、应用数据、个人文件和用户级 Flatpak |
 
-配置任务会在安装前备份它们管理的目标路径，卸载时删除这些目标的当前版本并恢复备份。DMS 在运行 duxinstall 前备份 Niri、Quickshell、Kitty 和 DMS 的相关用户配置根目录。卸载恢复会将这些目录还原到安装前状态，因此安装后在这些目录里新增的个人修改也会被覆盖；需要保留时请先另行备份。
+配置任务会在安装前备份它们管理的目标路径，卸载时删除这些目标的当前版本并恢复备份。DMS 在运行 duxinstall 前备份 Niri、Quickshell、Kitty 和 DMS 的相关用户配置根目录；DMS Greeter 的系统级初始化由 `dms-greeter install --yes` 执行，卸载或配置失败回滚时由 `dms-greeter uninstall` 撤销。卸载恢复会将这些目录还原到安装前状态，因此安装后在这些目录里新增的个人修改也会被覆盖；需要保留时请先另行备份。
 
 ### cleanup 注意事项
 
