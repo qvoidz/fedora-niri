@@ -52,6 +52,8 @@ modules:
 
         # ── System and session utilities ─────────────────────────────────
         - NetworkManager
+        - xdg-desktop-portal-gtk
+        - xdg-desktop-portal-gnome
         - qt6ct
         - just
         - xdg-user-dirs
