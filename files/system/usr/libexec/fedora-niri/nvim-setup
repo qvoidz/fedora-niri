@@ -7,7 +7,7 @@ paths_for() {
 }
 
 do_install() {
-  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+  command -v git >/dev/null || { echo "ERROR: git is required but was not found." >&2; return 1; }
   mkdir -p "$home/.config"
   rm -rf -- "$home/.config/nvim"
   git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
