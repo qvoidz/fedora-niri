@@ -53,7 +53,7 @@ DMS 配置通过 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-
 
 | 组件 | 用途 | 启用方式 |
 | --- | --- | --- |
-| `dux-search`（命令 `dsearch`） | 文件名/内容搜索 | `systemctl --user enable --now dsearch`，首次运行 `dsearch index generate` |
+| `dux-search`（命令 `dsearch`） | 文件名/内容搜索 | `just dms-setup` 自动启用用户服务；首次运行 `dsearch index generate` |
 | `dux-gop`（命令 `dgop`） | 系统资源数据 | DMS 小组件读取 |
 | `cava` | 音频频谱 | DMS 音频小组件 |
 | `qt6-qtmultimedia` | Qt 音频 | DMS 使用 |
