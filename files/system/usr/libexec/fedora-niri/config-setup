@@ -1,200 +1,124 @@
 #!/usr/bin/env bash
-# Shared install/backup/restore engine for Fedora Niri user configuration scripts.
-
 config_setup_main() {
-  module="${1:?missing module}"
-  shift
-  home="${HOME:?HOME is not set}"
-  yes=false
-  uninstall_only=false
+  module="\${1:?missing module}"; shift
+  home="\${HOME:?HOME is not set}"
+  yes=false; uninstall_only=false; refresh=false
   while (($#)); do
-    case "$1" in
-      -y|--yes) yes=true ;;
-      --uninstall) uninstall_only=true ;;
-      *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;;
-    esac
+    case "$1" in -y|--yes) yes=true ;; --uninstall) uninstall_only=true ;; --refresh) refresh=true ;; *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;; esac
     shift
   done
-
-  state_root="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
-  backup="$state_root/backup"
-  manifest="$state_root/manifest"
-  in_install=false
+  state_root="\${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
+  backup="$state_root/backup"; manifest="$state_root/manifest"; transaction="$state_root/refresh-transaction"
+  in_install=false; was_installed=false
   config_setup_error() {
-    local status="$1" line="$2" command="$3"
-    trap - ERR
+    local status="$1" line="$2" command="$3"; trap - ERR
     printf "ERROR: %s failed at line %s (exit code %s).\nCommand: %s\n" "$module" "$line" "$status" "$command" >&2
     exit "$status"
   }
-  trap 'config_setup_error "$?" "${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
-  if declare -F config_setup_init >/dev/null; then
-    config_setup_init
-  fi
+  trap 'config_setup_error "$?" "\${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
+  declare -F config_setup_init >/dev/null && config_setup_init
 
-  snapshot() {
-    local staging="$state_root/.snapshot.$BASHPID"
-    rm -rf -- "$staging"
-    mkdir -p "$staging/backup/original"
-    : > "$staging/manifest"
-
+  snapshot_to() {
+    local destination="$1" staging="$state_root/.snapshot.$BASHPID"
+    rm -rf -- "$staging"; mkdir -p "$staging/backup/original"; : > "$staging/manifest"
     while IFS= read -r rel; do
       [[ -n "$rel" ]] || continue
       if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
         mkdir -p "$staging/backup/original/$(dirname "$rel")"
         cp -a -- "$home/$rel" "$staging/backup/original/$rel"
         printf 'present\t%s\n' "$rel" >> "$staging/manifest"
-      else
-        printf 'absent\t%s\n' "$rel" >> "$staging/manifest"
-      fi
+      else printf 'absent\t%s\n' "$rel" >> "$staging/manifest"; fi
     done < <(paths_for)
-
-    # Publish the backup first and the manifest last. A manifest is only
-    # visible once every requested path has been copied successfully.
-    rm -rf -- "$backup"
-    mv -- "$staging/backup" "$backup"
-    mv -- "$staging/manifest" "$manifest"
-    rmdir -- "$staging"
+    rm -rf -- "$destination"; mkdir -p "$(dirname "$destination")"; mv -- "$staging" "$destination"
   }
-
-  restore() {
-    [[ -f "$manifest" ]] || return 0
-    local status rel source parent staging
+  restore_from() {
+    local source_root="$1" status rel source parent staging
+    [[ -f "$source_root/manifest" ]] || return 0
     while IFS=$'\t' read -r status rel; do
       [[ -n "$rel" ]] || continue
       case "$status" in
         present)
-          source="$backup/original/$rel"
-          if [[ ! -e "$source" && ! -L "$source" ]]; then
-            echo "备份文件缺失，拒绝删除现有配置：$rel" >&2
-            return 1
-          fi
-          parent="$home/$(dirname "$rel")"
-          mkdir -p "$parent"
+          source="$source_root/backup/original/$rel"
+          [[ -e "$source" || -L "$source" ]] || { echo "ERROR: Backup missing for $rel; refusing destructive restore." >&2; return 1; }
+          parent="$home/$(dirname "$rel")"; mkdir -p "$parent"
           staging="$(mktemp -d "$parent/.config-setup-restore.XXXXXX")"
-          if ! cp -a -- "$source" "$staging/item"; then
-            rm -rf -- "$staging"
-            return 1
-          fi
-          if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then
-            if ! mv -- "$home/$rel" "$staging/previous"; then
-              rm -rf -- "$staging"
-              return 1
-            fi
-          fi
+          cp -a -- "$source" "$staging/item"
+          if [[ -e "$home/$rel" || -L "$home/$rel" ]]; then mv -- "$home/$rel" "$staging/previous"; fi
           if ! mv -- "$staging/item" "$home/$rel"; then
-            if [[ -e "$staging/previous" || -L "$staging/previous" ]]; then
-              mv -- "$staging/previous" "$home/$rel" || true
-            fi
-            rm -rf -- "$staging"
-            return 1
+            [[ -e "$staging/previous" || -L "$staging/previous" ]] && mv -- "$staging/previous" "$home/$rel" || true
+            rm -rf -- "$staging"; return 1
           fi
-          rm -rf -- "$staging"
-          ;;
-        absent)
-          rm -rf -- "$home/$rel"
-          ;;
-        *)
-          echo "备份清单包含未知状态：$status ($rel)" >&2
-          return 1
-          ;;
+          rm -rf -- "$staging" ;;
+        absent) rm -rf -- "$home/$rel" ;;
+        *) echo "ERROR: Unknown backup state: $status ($rel)" >&2; return 1 ;;
       esac
-    done < "$manifest"
+    done < "$source_root/manifest"
   }
+  restore() { restore_from "$state_root"; }
 
   rollback_install() {
     local status=$?
     if [[ "$in_install" == true ]]; then
       trap - EXIT INT TERM HUP
-      echo "Installation failed. Rolling back the original configuration..." >&2
+      echo "ERROR: $module setup failed; restoring previous configuration..." >&2
       if declare -F rollback_install_extra >/dev/null; then
-        rollback_install_extra || echo "ERROR: Module rollback failed. Recovery data remains at $state_root" >&2
+        rollback_install_extra || echo "ERROR: Module rollback incomplete; recovery data remains at $state_root" >&2
+      elif [[ "$was_installed" == true ]]; then
+        restore_from "$transaction" || echo "ERROR: Refresh rollback failed; backup remains at $transaction" >&2
       else
-        restore || echo "ERROR: Automatic rollback failed. Backup remains at $backup" >&2
+        restore || echo "ERROR: Initial rollback failed; backup remains at $backup" >&2
       fi
       rm -rf -- "$state_root"/.snapshot.*
-      rm -f "$state_root/installed" "$state_root/installing"
-      [[ -f "$manifest" ]] && touch "$state_root/failed"
+      rm -f "$state_root/installing"
+      [[ "$was_installed" == true ]] || rm -f "$state_root/installed"
+      touch "$state_root/failed"
     fi
     exit "$status"
   }
 
+  install_module() {
+    if [[ -f "$state_root/installed" && "$refresh" != true ]]; then
+      declare -F after_already_installed >/dev/null && after_already_installed
+      echo "$module is already installed."; return 0
+    fi
+    if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
+      echo "ERROR: Previous $module operation is incomplete. Inspect $state_root before retrying." >&2
+      return 1
+    fi
+    [[ -f "$state_root/installed" ]] && was_installed=true
+    mkdir -p "$state_root"; touch "$state_root/installing"; in_install=true
+    trap rollback_install EXIT INT TERM HUP
+    if [[ "$was_installed" == true ]]; then snapshot_to "$transaction"; else snapshot_to "$state_root"; fi
+    do_install
+    [[ "$was_installed" == true ]] || touch "$state_root/installed"
+    rm -f "$state_root/installing" "$state_root/failed"
+    rm -rf "$transaction"
+    in_install=false; trap - EXIT INT TERM HUP
+    echo "$module configuration completed successfully."
+  }
   confirm_action() {
     local prompt="$1" answer
     [[ "$yes" == true ]] && return 0
-    printf '%s [Y/n] ' "$prompt"
-    IFS= read -r answer || answer=""
-    case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+    printf '%s [Y/n] ' "$prompt"; IFS= read -r answer || answer=""
+    case "\${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
   }
-
-  install_module() {
-    if [[ -f "$state_root/installed" ]]; then
-      if declare -F after_already_installed >/dev/null; then
-        after_already_installed
-      fi
-      echo "$module is already installed."
-      return 0
-    fi
-    if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-      echo "Found an incomplete previous operation. Rolling back before retrying..."
-      if declare -F rollback_install_extra >/dev/null; then
-        rollback_install_extra
-      else
-        restore
-      fi
-      rm -rf "$state_root"
-    elif [[ -e "$state_root" ]]; then
-      echo "Found incomplete state data. Restoring and cleaning it..."
-      restore
-      rm -rf "$state_root"
-    fi
-
-    mkdir -p "$state_root"
-    touch "$state_root/installing"
-    in_install=true
-    trap rollback_install EXIT INT TERM HUP
-    snapshot
-    do_install
-    touch "$state_root/installed"
-    rm -f "$state_root/installing" "$state_root/failed"
-    in_install=false
-    trap - EXIT INT TERM HUP
-    echo "$module installation completed successfully."
-  }
-
   uninstall_module() {
     if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
-      echo "ERROR: No installation record found for $module."
-      return 1
+      echo "ERROR: No installation record found for $module."; return 1
     fi
-    if [[ -f "$state_root/installed" && "$yes" != true ]]; then
-      confirm_action "确认卸载 $module 并恢复安装前配置？" || { echo "Uninstallation cancelled."; return 0; }
+    if [[ -f "$state_root/installed" ]]; then
+      confirm_action "Uninstall $module and restore original configuration?" || { echo "Uninstallation cancelled."; return 0; }
     fi
-    if declare -F before_uninstall >/dev/null; then
-      before_uninstall
-    fi
+    declare -F before_uninstall >/dev/null && before_uninstall
     restore
-    if declare -F after_uninstall >/dev/null; then
-      after_uninstall
-    fi
+    declare -F after_uninstall >/dev/null && after_uninstall
     rm -rf -- "$state_root"
-    echo "$module uninstallation completed successfully. Previous configuration restored."
+    echo "$module uninstalled successfully; previous configuration restored."
   }
-
   echo "Managing configuration: $module"
-  if [[ "$uninstall_only" == true ]]; then
-    uninstall_module
-    exit $?
-  fi
-  if [[ "$yes" == true ]]; then
-    install_module
-    exit $?
-  fi
+  if [[ "$uninstall_only" == true ]]; then uninstall_module; exit $?; fi
+  if [[ "$yes" == true ]]; then install_module; exit $?; fi
   select action in Install Uninstall Cancel; do
-    case "$action" in
-      Install) install_module; break ;;
-      Uninstall) uninstall_module; break ;;
-      Cancel) echo "Cancelled. No files were changed."; exit 0 ;;
-      *) echo "Invalid selection. Please try again." ;;
-    esac
+    case "$action" in Install) install_module; break ;; Uninstall) uninstall_module; break ;; Cancel) echo "Cancelled."; exit 0 ;; *) echo "Invalid selection." ;; esac
   done
 }
