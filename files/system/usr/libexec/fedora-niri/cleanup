@@ -29,12 +29,12 @@ run_module_uninstall() {
     printf 'SKIPPED (no installation record): %s configuration\\n' "$module"
     return 0
   fi
-  if [[ ! -x "$script" ]]; then
-    printf 'ERROR: Uninstall script not found or not executable: %s\\n' "$script" >&2
+  if [[ ! -r "$script" ]]; then
+    printf 'ERROR: Uninstall script not found or not readable: %s\\n' "$script" >&2
     cleanup_errors+=("$module configuration")
     return 1
   fi
-  if "$script" --uninstall --yes; then
+  if bash "$script" --uninstall --yes; then
     printf 'Removed: %s configuration\\n' "$module"
   else
     printf 'ERROR: Failed to restore/remove %s configuration.\\n' "$module" >&2
@@ -178,6 +178,10 @@ if ask "Remove application data in ~/.local/share (excluding Flatpak data) and ~
     find "$HOME/.local/state" -mindepth 1 -maxdepth 1 ! -name fedora-niri -exec rm -rf -- {} + ||
       { echo "ERROR: Failed to clean ~/.local/state application data." >&2; cleanup_errors+=("~/.local/state application data"); }
   fi
+fi
+
+if ask "Remove remaining user configuration files under ~/.config?"; then
+  remove_paths "$HOME/.config"
 fi
 
 if ask "Remove user cache (~/.cache)?"; then
