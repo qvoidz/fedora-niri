@@ -42,6 +42,9 @@ jobs:
       - name: Test Neovim and Fcitx setup
         run: bash tests/test-user-setup.sh
 
+      - name: Test cleanup state deletion
+        run: bash tests/test-cleanup.sh
+
 
       - name: Validate shell script syntax
         run: |
