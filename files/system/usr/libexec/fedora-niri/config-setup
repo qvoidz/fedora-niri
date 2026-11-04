@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 config_setup_main() {
-  module="\${1:?missing module}"; shift
-  home="\${HOME:?HOME is not set}"
+  module="${1:?missing module}"; shift
+  home="${HOME:?HOME is not set}"
   yes=false; uninstall_only=false; refresh=false
   while (($#)); do
     case "$1" in -y|--yes) yes=true ;; --uninstall) uninstall_only=true ;; --refresh) refresh=true ;; *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;; esac
     shift
   done
-  state_root="\${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
+  state_root="${XDG_STATE_HOME:-$home/.local/state}/fedora-niri/config-setup/$module"
   backup="$state_root/backup"; manifest="$state_root/manifest"; transaction="$state_root/refresh-transaction"
   in_install=false; was_installed=false
   config_setup_error() {
@@ -15,7 +15,7 @@ config_setup_main() {
     printf "ERROR: %s failed at line %s (exit code %s).\nCommand: %s\n" "$module" "$line" "$status" "$command" >&2
     exit "$status"
   }
-  trap 'config_setup_error "$?" "\${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
+  trap 'config_setup_error "$?" "${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
   declare -F config_setup_init >/dev/null && config_setup_init
 
   snapshot_to() {
@@ -61,17 +61,22 @@ config_setup_main() {
     if [[ "$in_install" == true ]]; then
       trap - EXIT INT TERM HUP
       echo "ERROR: $module setup failed; restoring previous configuration..." >&2
+      local rollback_failed=false
       if declare -F rollback_install_extra >/dev/null; then
-        rollback_install_extra || echo "ERROR: Module rollback incomplete; recovery data remains at $state_root" >&2
-      elif [[ "$was_installed" == true ]]; then
-        restore_from "$transaction" || echo "ERROR: Refresh rollback failed; backup remains at $transaction" >&2
+        rollback_install_extra || rollback_failed=true
+      fi
+      if [[ "$was_installed" == true ]]; then
+        restore_from "$transaction" || rollback_failed=true
       else
-        restore || echo "ERROR: Initial rollback failed; backup remains at $backup" >&2
+        restore || rollback_failed=true
       fi
       rm -rf -- "$state_root"/.snapshot.*
       rm -f "$state_root/installing"
       [[ "$was_installed" == true ]] || rm -f "$state_root/installed"
       touch "$state_root/failed"
+      if [[ "$rollback_failed" == true ]]; then
+        echo "ERROR: Rollback incomplete; recovery data remains at $state_root" >&2
+      fi
     fi
     exit "$status"
   }
@@ -84,9 +89,17 @@ config_setup_main() {
     [[ -f "$state_root/installed" ]] && was_installed=true
     if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
       echo "Recovering the previous incomplete $module operation before retrying..."
-      if [[ "$was_installed" == true && -f "$transaction/manifest" ]]; then
+      if [[ "$was_installed" == true ]]; then
+        [[ -f "$transaction/manifest" ]] || {
+          echo "ERROR: Refresh recovery data is missing; refusing to continue." >&2
+          return 1
+        }
         restore_from "$transaction"
-      elif [[ "$was_installed" != true && -f "$manifest" ]]; then
+      else
+        [[ -f "$manifest" ]] || {
+          echo "ERROR: Initial recovery manifest is missing; refusing to continue." >&2
+          return 1
+        }
         restore
       fi
       rm -rf "$transaction"
@@ -102,7 +115,9 @@ config_setup_main() {
       mv -- "$state_root/initial-snapshot/manifest" "$manifest"
       rmdir -- "$state_root/initial-snapshot"
     fi
+    declare -F config_setup_before_operation >/dev/null && config_setup_before_operation
     do_install
+    declare -F config_setup_after_operation >/dev/null && config_setup_after_operation
     [[ "$was_installed" == true ]] || touch "$state_root/installed"
     rm -f "$state_root/installing" "$state_root/failed"
     rm -rf "$transaction"
@@ -113,13 +128,17 @@ config_setup_main() {
     local prompt="$1" answer
     [[ "$yes" == true ]] && return 0
     printf '%s [Y/n] ' "$prompt"; IFS= read -r answer || answer=""
-    case "\${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+    case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
   }
   uninstall_module() {
     if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
       echo "ERROR: No installation record found for $module."; return 1
     fi
     if [[ -f "$state_root/installed" ]]; then
+      [[ -f "$manifest" ]] || {
+        echo "ERROR: Original configuration manifest is missing; refusing destructive uninstall." >&2
+        return 1
+      }
       confirm_action "Uninstall $module and restore original configuration?" || { echo "Uninstallation cancelled."; return 0; }
     fi
     declare -F before_uninstall >/dev/null && before_uninstall
