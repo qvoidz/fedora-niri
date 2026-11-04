@@ -174,7 +174,7 @@ update_rime_config() {
 }
 
 start_fcitx() {
-  local uid attempt
+  local uid attempt available_methods
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
@@ -207,6 +207,16 @@ start_fcitx() {
     return 1
   fi
 
+  available_methods="$(fcitx5-remote -l)" || {
+    echo "ERROR: Could not query the input methods registered by Fcitx5. Check $state_root/fcitx5.log." >&2
+    return 1
+  }
+  printf 'Fcitx5 input methods detected:\\n%s\\n' "$available_methods"
+  if ! grep -Fxq 'rime' <<< "$available_methods"; then
+    echo "ERROR: The Rime engine is not registered by the running Fcitx5 daemon. The profile entry alone cannot install an engine. Verify the fcitx5-rime RPM and inspect the Fcitx5 log." >&2
+    return 1
+  fi
+
   fcitx5-remote -s rime
   current="$(fcitx5-remote -n)"
   if [[ "$current" != "rime" ]]; then
@@ -217,6 +227,11 @@ start_fcitx() {
 
 after_already_installed() {
   command -v git >/dev/null 2>&1 || { echo "ERROR: git is required but was not found." >&2; return 1; }
+  command -v rpm >/dev/null 2>&1 || { echo "ERROR: rpm is required to verify the fcitx5-rime engine package." >&2; return 1; }
+  rpm -q fcitx5-rime >/dev/null 2>&1 || {
+    echo "ERROR: The fcitx5-rime RPM is not installed. Add/install fcitx5-rime in the image before configuring Rime." >&2
+    return 1
+  }
   command -v fcitx5 >/dev/null 2>&1 || { echo "ERROR: fcitx5 was not found." >&2; return 1; }
   command -v fcitx5-remote >/dev/null 2>&1 || { echo "ERROR: fcitx5-remote was not found." >&2; return 1; }
   command -v pgrep >/dev/null 2>&1 || { echo "ERROR: pgrep was not found." >&2; return 1; }
