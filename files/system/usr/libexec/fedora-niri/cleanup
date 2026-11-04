@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 : "${HOME:?ERROR: HOME is not set}"
+source /usr/libexec/fedora-niri/logging
+setup_logging cleanup
 trap 'status=$?; printf "ERROR: cleanup failed at line %s (exit code %s).\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
 yes_all=false
