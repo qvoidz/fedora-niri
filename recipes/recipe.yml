@@ -61,6 +61,7 @@ modules:
         # ── Fonts ────────────────────────────────────────────────────────
         - google-noto-sans-fonts
         - google-noto-serif-fonts
+        - google-noto-serif-cjk-fonts
         - google-noto-sans-mono-fonts
         - google-noto-sans-cjk-fonts
         - google-noto-sans-mono-cjk-vf-fonts
