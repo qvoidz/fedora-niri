@@ -117,23 +117,89 @@ do_install() {
   python3 - "$settings" <<'PY'
 import json, os, stat, sys, tempfile
 path = sys.argv[1]
+seed = json.loads(r'''{
+  "fontFamily": "Noto Sans",
+  "dmsWindowsFloatingSeeded": ["niri"],
+  "configVersion": 42,
+  "touchpadDisableOnExternalMouse": true,
+  "density": "comfortable",
+  "showSeconds": false,
+  "showAmPm": false,
+  "padHours12Hour": false,
+  "showWeekNumber": false,
+  "clockDateFormat": "yyyy年 MMM dd日 dddd",
+  "clockFormat": "24h",
+  "useAutoLocation": true,
+  "dockConfigs": [{
+    "id": "dock",
+    "name": "Dock",
+    "enabled": true,
+    "screenPreferences": ["all"],
+    "showOnLastDisplay": true,
+    "position": 1,
+    "mode": "compact",
+    "middleClickAction": "close",
+    "taskbarAlign": "center",
+    "widgetExpansion": "popout",
+    "iconSize": 42,
+    "spacing": 16,
+    "itemSpacing": 16,
+    "margin": 8,
+    "bottomGap": 0,
+    "transparency": 1,
+    "followInterfaceStyle": true,
+    "autoHide": false,
+    "smartAutoHide": true,
+    "useOverlayLayer": false,
+    "editOnRightClick": false,
+    "showOnFullscreen": false,
+    "openOnOverview": true,
+    "groupByApp": false,
+    "separatePinnedAndRunningApps": true,
+    "restoreSpecialWorkspaceOnClick": false,
+    "isolateDisplays": false,
+    "indicatorStyle": "circle",
+    "borderEnabled": false,
+    "borderColor": "surfaceText",
+    "borderOpacity": 1,
+    "borderThickness": 1,
+    "launcherEnabled": true,
+    "launcherLogoMode": "apps",
+    "launcherLogoCustomPath": "",
+    "launcherLogoColorOverride": "",
+    "launcherLogoSizeOffset": 0,
+    "launcherLogoBrightness": 0.5,
+    "launcherLogoContrast": 1,
+    "maxVisibleApps": 0,
+    "maxVisibleRunningApps": 0,
+    "showOverflowBadge": true,
+    "showTrash": false,
+    "trashFileManager": "default",
+    "trashCustomCommand": "",
+    "magnification": false,
+    "magnificationScale": 130,
+    "magnificationProfile": "parabolic",
+    "magnificationExpand": false,
+    "order": [],
+    "widgets": [
+      {"id": "dock_launcher", "widgetId": "dockLauncher", "enabled": true},
+      {"id": "dock_apps", "widgetId": "appsDock", "enabled": true},
+      {"id": "dock_trash", "widgetId": "dockTrash", "enabled": true}
+    ]
+  }],
+  "builtInPluginSettings": {
+    "dms_qr_generator": {"trigger": "qrg"},
+    "dms_power": {"trigger": "pw"},
+    "dms_clipboard_search": {"trigger": "cb"},
+    "dms_settings_search": {"trigger": "?"}
+  },
+  "springBounce": 2
+}''')
 with open(path, encoding="utf-8") as stream:
     settings = json.load(stream)
 if not isinstance(settings, dict):
     raise SystemExit("ERROR: DMS settings.json root must be a JSON object.")
-settings.update({
-    "showSeconds": False,
-    "showAmPm": False,
-    "padHours12Hour": False,
-    "showWeekNumber": False,
-    "clockDateFormat": "yyyy年 MMM dd日 dddd",
-    "clockFormat": "24h",
-    "useAutoLocation": True,
-})
-docks = settings.get("dockConfigs")
-if not isinstance(docks, list) or not docks or not isinstance(docks[0], dict):
-    raise SystemExit("ERROR: DMS settings.json does not contain a valid dockConfigs[0] object.")
-docks[0]["openOnOverview"] = True
+settings.update(seed)
 mode = stat.S_IMODE(os.stat(path).st_mode)
 fd, temporary = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(path))
 try:
