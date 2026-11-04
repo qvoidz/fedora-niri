@@ -18,6 +18,9 @@ config_setup_main() {
   backup="$state_root/backup"
   manifest="$state_root/manifest"
   in_install=false
+  if declare -F config_setup_init >/dev/null; then
+    config_setup_init
+  fi
 
   snapshot() {
     mkdir -p "$backup/original"
