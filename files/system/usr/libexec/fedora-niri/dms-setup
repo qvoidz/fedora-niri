@@ -232,7 +232,39 @@ with open(path, encoding="utf-8") as stream:
     settings = json.load(stream)
 if not isinstance(settings, dict):
     raise SystemExit("ERROR: DMS settings.json root must be a JSON object.")
+dock_seed = seed.pop("dockConfigs")
+plugin_seed = seed.pop("builtInPluginSettings")
 settings.update(seed)
+
+# Merge the managed dock by ID instead of replacing the user's complete dock list.
+docks = settings.get("dockConfigs")
+if not isinstance(docks, list):
+    docks = []
+dock = next((item for item in docks if isinstance(item, dict) and item.get("id") == "dock"), None)
+if dock is None:
+    dock = dict(dock_seed[0])
+    docks.insert(0, dock)
+else:
+    dock.update({key: value for key, value in dock_seed[0].items() if key != "widgets"})
+    existing_widgets = dock.get("widgets")
+    if not isinstance(existing_widgets, list):
+        existing_widgets = []
+    for widget_seed in dock_seed[0].get("widgets", []):
+        widget = next((item for item in existing_widgets
+                       if isinstance(item, dict) and item.get("widgetId") == widget_seed.get("widgetId")), None)
+        if widget is None:
+            existing_widgets.append(dict(widget_seed))
+        else:
+            widget.update(widget_seed)
+    dock["widgets"] = existing_widgets
+settings["dockConfigs"] = docks
+
+plugins = settings.get("builtInPluginSettings")
+if not isinstance(plugins, dict):
+    plugins = {}
+plugins.update(plugin_seed)
+settings["builtInPluginSettings"] = plugins
+
 mode = stat.S_IMODE(os.stat(path).st_mode)
 fd, temporary = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(path))
 try:
