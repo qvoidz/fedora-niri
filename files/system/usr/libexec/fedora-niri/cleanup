@@ -13,6 +13,7 @@ remove_cache=false
 remove_appdata=false
 remove_user_dirs=false
 remove_personal=false
+cleanup_errors=()
 
 if [[ "${1:-}" == "-y" ]]; then
   # -y means accept every destructive cleanup category.
@@ -39,6 +40,25 @@ else
   ask "卸载用户级 Flatpak 应用及其数据？" && remove_user_flatpaks=true
 fi
 
+# Missing cleanup targets are normal: skip them. Real removal failures are
+# collected so the remaining cleanup actions can still run.
+remove_paths() {
+  local path
+  for path in "$@"; do
+    if [[ ! -e "$path" && ! -L "$path" ]]; then
+      printf '跳过（不存在）：%s\n' "$path"
+      continue
+    fi
+
+    if rm -rf -- "$path"; then
+      printf '已清理：%s\n' "$path"
+    else
+      printf '清理失败：%s\n' "$path" >&2
+      cleanup_errors+=("$path")
+    fi
+  done
+}
+
 # User XDG directories are handled separately from other HOME contents.
 user_dirs=(
   "$HOME/Desktop" "$HOME/Documents" "$HOME/Downloads"
@@ -48,36 +68,61 @@ user_dirs=(
 
 if [[ "$remove_user_flatpaks" == true ]]; then
   if command -v flatpak >/dev/null 2>&1; then
-    flatpak uninstall --user --all --delete-data --assumeyes
+    if ! flatpak uninstall --user --all --delete-data --assumeyes; then
+      echo "用户级 Flatpak 卸载失败。" >&2
+      cleanup_errors+=("用户级 Flatpak 应用")
+    fi
   else
-    echo "未找到 flatpak 命令；将清理用户级 Flatpak 文件目录。"
+    echo "未找到 flatpak 命令；跳过 Flatpak 应用卸载，继续清理文件目录。"
   fi
-  rm -rf -- "$HOME/.local/share/flatpak"
+  remove_paths "$HOME/.local/share/flatpak"
 fi
 
 if [[ "$remove_config" == true ]]; then
-  rm -rf -- "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.gitconfig" "$HOME/.vimrc"
+  remove_paths \
+    "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" \
+    "$HOME/.profile" "$HOME/.zshrc" "$HOME/.zprofile" \
+    "$HOME/.gitconfig" "$HOME/.vimrc"
 fi
+
 if [[ "$remove_cache" == true ]]; then
-  rm -rf -- "$HOME/.cache"
+  remove_paths "$HOME/.cache"
 fi
+
 if [[ "$remove_appdata" == true ]]; then
-  rm -rf -- "$HOME/.var/app"
-  mkdir -p "$HOME/.local/share"
-  find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +
-  rm -rf -- "$HOME/.local/state"
+  remove_paths "$HOME/.var/app"
+
+  if [[ -d "$HOME/.local/share" ]]; then
+    if ! find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +; then
+      echo "清理 ~/.local/share 中的应用数据时发生错误。" >&2
+      cleanup_errors+=("$HOME/.local/share 中的应用数据")
+    fi
+  else
+    echo "跳过（不存在）：$HOME/.local/share"
+  fi
+
+  remove_paths "$HOME/.local/state"
 fi
+
 if [[ "$remove_user_dirs" == true ]]; then
-  rm -rf -- "${user_dirs[@]}"
+  remove_paths "${user_dirs[@]}"
 fi
+
 if [[ "$remove_personal" == true ]]; then
   for entry in "$HOME"/* "$HOME"/.[!.]* "$HOME"/..?*; do
     [[ -e "$entry" || -L "$entry" ]] || continue
     case "$entry" in
       "$HOME/.config"|"$HOME/.cache"|"$HOME/.local"|"$HOME/.var"|"$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads"|"$HOME/Music"|"$HOME/Pictures"|"$HOME/Public"|"$HOME/Templates"|"$HOME/Videos") ;;
-      *) rm -rf -- "$entry" ;;
+      *) remove_paths "$entry" ;;
     esac
   done
+fi
+
+if (("${#cleanup_errors[@]}" > 0)); then
+  echo
+  echo "清理已完成，但以下项目发生错误：" >&2
+  printf '  - %s\n' "${cleanup_errors[@]}" >&2
+  exit 1
 fi
 
 echo "清理完成。项目镜像预装的系统级 Flatpak 应用未被卸载。建议注销并重新登录。"
