@@ -15,10 +15,10 @@ update_rime_config() {
   mkdir -p "$home/.local/share/fcitx5"
 
   if [[ -d "$rime_dir/.git" ]]; then
-    echo "正在更新雾凇拼音配置……"
+    echo "Updating Rime Ice configuration..."
     git -C "$rime_dir" pull --ff-only
   elif [[ -e "$rime_dir" ]]; then
-    echo "Rime 配置目录已存在但不是 Git 仓库，拒绝覆盖：$rime_dir" >&2
+    echo "ERROR: Rime directory exists but is not a Git repository; refusing to overwrite: $rime_dir" >&2
     return 1
   else
     local tmp
@@ -34,14 +34,14 @@ update_rime_config() {
 
 # Refresh Rime even when the Fcitx configuration module is already marked configured.
 after_already_installed() {
-  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+  command -v git >/dev/null || { echo "ERROR: git is required but was not found." >&2; return 1; }
   update_rime_config
 }
 
 do_install() {
-  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
-  command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
-  command -v fcitx5-remote >/dev/null || { echo "未找到 fcitx5-remote。" >&2; return 1; }
+  command -v git >/dev/null || { echo "ERROR: git is required but was not found." >&2; return 1; }
+  command -v fcitx5 >/dev/null || { echo "ERROR: fcitx5 was not found." >&2; return 1; }
+  command -v fcitx5-remote >/dev/null || { echo "ERROR: fcitx5-remote was not found." >&2; return 1; }
 
   mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.config/fcitx5" "$home/.local/share/fcitx5"
 
@@ -87,7 +87,7 @@ EOF
   else
     nohup fcitx5 -d --replace >/dev/null 2>&1 </dev/null &
   fi
-  echo "已更新雾凇拼音并配置 Fcitx5；会话环境变量需重新登录后生效。"
+  echo "Fcitx5 configuration and Rime Ice update completed successfully. Log out and back in to apply session environment variables."
 }
 
 config_setup_main fcitx "$@"
