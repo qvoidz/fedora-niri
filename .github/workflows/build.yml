@@ -27,10 +27,10 @@ jobs:
           - recipe.yml
     steps:
       - name: Check out image repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check out latest Dux Shell source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: duxlabs-dev/dux-shell
           ref: master
