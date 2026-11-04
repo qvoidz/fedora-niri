@@ -126,8 +126,12 @@ config_setup_main() {
       return 0
     fi
     if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-      echo "发现上次未完成的安装，先恢复原始配置并清理旧状态。"
-      restore
+      echo "发现上次未完成的配置操作，先执行模块回滚并清理旧状态。"
+      if declare -F rollback_install_extra >/dev/null; then
+        rollback_install_extra
+      else
+        restore
+      fi
       rm -rf "$state_root"
     elif [[ -e "$state_root" ]]; then
       echo "发现不完整的旧状态目录，正在恢复并清理。"
