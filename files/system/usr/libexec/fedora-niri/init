@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: "\${HOME:?ERROR: HOME is not set}"
+state_root="\${XDG_STATE_HOME:-$HOME/.local/state}/fedora-niri"
+mkdir -p "$state_root"
+exec 9>"$state_root/init.lock"
+flock -n 9 || { echo "Initialization is already running; skipping this login."; exit 0; }
+trap 'status=$?; printf "ERROR: Initialization failed at line %s (exit code %s). Next login will retry.\n" "\${BASH_LINENO[0]:-$LINENO}" "$status" >&2; exit "$status"' ERR
+
+deployment="$(ostree admin status --json | python3 -c '
+import json,sys
+data=json.load(sys.stdin)
+def walk(value):
+    if isinstance(value,dict):
+        if value.get("booted") is True:
+            for key in ("checksum","commit","revision"):
+                item=value.get(key)
+                if isinstance(item,str) and item:
+                    print(item); return True
+        for item in value.values():
+            if walk(item): return True
+    elif isinstance(value,list):
+        for item in value:
+            if walk(item): return True
+    return False
+if not walk(data):
+    raise SystemExit("ERROR: Could not identify the booted OSTree deployment checksum.")
+')"
+[[ -n "$deployment" ]] || { echo "ERROR: Booted deployment checksum is empty." >&2; exit 1; }
+
+first_clean="$state_root/first-clean-complete"
+marker="$state_root/deployment"
+if [[ ! -f "$first_clean" ]]; then
+  echo "First initialization: running one-time full cleanup."
+  bash /usr/libexec/fedora-niri/cleanup -y
+  touch "$first_clean"
+fi
+
+previous=""
+[[ -f "$marker" ]] && previous="$(cat "$marker")"
+if [[ "$previous" == "$deployment" ]]; then
+  echo "Already initialized for deployment $deployment."
+  exit 0
+fi
+
+backup_dir="$state_root/upgrade-backups/$deployment"
+mkdir -p "$backup_dir"
+for rel in .config/niri .config/quickshell .config/dms .local/share/dms .local/state/dms .cache/dms .config/kitty .config/nvim; do
+  source="$HOME/$rel"
+  if [[ -e "$source" || -L "$source" ]]; then
+    destination="$backup_dir/$rel"
+    mkdir -p "$(dirname "$destination")"
+    if [[ ! -e "$destination" && ! -L "$destination" ]]; then
+      cp -a -- "$source" "$destination"
+    fi
+  fi
+done
+
+run_setup() {
+  local script="$1"
+  echo "Running $script..."
+  bash "/usr/libexec/fedora-niri/$script" --refresh --yes
+}
+run_setup niri-setup
+run_setup dms-setup
+run_setup kitty-setup
+run_setup nvim-setup
+
+printf '%s\n' "$deployment" > "$marker.tmp"
+mv -f "$marker.tmp" "$marker"
+echo "Fedora Niri initialization completed successfully for deployment $deployment."
