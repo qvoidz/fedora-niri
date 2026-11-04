@@ -4,7 +4,7 @@ export DMS_PRIVESC=sudo
 source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
-  printf '%s\n' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  printf '%s\n' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms' '.config/niri' '.config/quickshell' '.config/kitty'
 }
 
 restore_greetd_config() {
@@ -123,6 +123,12 @@ PY
 }
 
 do_install() {
+  command -v duxinstall >/dev/null || {
+    echo "ERROR: duxinstall was not found; ensure the Dux Installer is available in the image." >&2
+    return 1
+  }
+  duxinstall -c niri -t kitty --all-features --replace-configs niri -y
+
   command -v dms-greeter >/dev/null || {
     echo "ERROR: dms-greeter is missing; ensure dux-greeter is installed in the image." >&2
     return 1
