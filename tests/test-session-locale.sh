@@ -9,8 +9,9 @@ niri_session="$repo_root/files/system/usr/share/wayland-sessions/niri.desktop"
   echo "ERROR: Image greetd configuration is missing." >&2
   exit 1
 }
-grep -Fqx 'user = "greeter"' "$greetd_config"
+grep -Fqx '[general]' "$greetd_config"
 grep -Fqx 'source_profile = false' "$greetd_config"
+grep -Fqx 'user = "greeter"' "$greetd_config"
 grep -Fqx 'command = "env LANG=zh_CN.UTF-8 dms-greeter --command niri"' "$greetd_config"
 
 [[ -f "$niri_session" ]] || {
