@@ -4,6 +4,11 @@ source /usr/libexec/fedora-niri/config-setup
 
 rime_staging=""
 
+config_setup_init() {
+  config_home="${XDG_CONFIG_HOME:-$home/.config}"
+  data_home="${XDG_DATA_HOME:-$home/.local/share}"
+}
+
 rollback_install_extra() {
   [[ -z "$rime_staging" ]] || rm -rf -- "$rime_staging"
 }
@@ -17,7 +22,7 @@ before_uninstall() {
 }
 
 write_environment() {
-  local destination="$home/.config/environment.d/90-fcitx5.conf"
+  local destination="$config_home/environment.d/90-fcitx5.conf"
   local temporary="$destination.tmp"
   mkdir -p "$(dirname "$destination")"
   cat > "$temporary" <<'EOF'
@@ -30,7 +35,7 @@ EOF
 }
 
 write_autostart() {
-  local destination="$home/.config/autostart/org.fcitx.Fcitx5.desktop"
+  local destination="$config_home/autostart/org.fcitx.Fcitx5.desktop"
   local temporary="$destination.tmp"
   mkdir -p "$(dirname "$destination")"
   cat > "$temporary" <<'EOF'
@@ -46,7 +51,7 @@ EOF
 }
 
 write_profile() {
-  local destination="$home/.config/fcitx5/profile"
+  local destination="$config_home/fcitx5/profile"
   local temporary="$destination.tmp"
   mkdir -p "$(dirname "$destination")"
   cat > "$temporary" <<'EOF'
@@ -71,7 +76,7 @@ EOF
 }
 
 clear_temporary_toggle_hotkey() {
-  local destination="$home/.config/fcitx5/config"
+  local destination="$config_home/fcitx5/config"
   mkdir -p "$(dirname "$destination")"
   python3 - "$destination" <<'PY'
 import os
@@ -141,9 +146,9 @@ PY
 }
 
 update_rime_config() {
-  local rime_dir="$home/.local/share/fcitx5/rime"
+  local rime_dir="$data_home/fcitx5/rime"
   local clone_status
-  mkdir -p "$home/.local/share/fcitx5"
+  mkdir -p "$data_home/fcitx5"
 
   if [[ -d "$rime_dir/.git" ]]; then
     echo "Updating Rime Ice configuration..."
