@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+source /usr/libexec/fedora-niri/logging
+setup_logging enable-user-init-service
 unit=fedora-niri-init.service
 source=/usr/lib/systemd/user/$unit
 target=/etc/systemd/user/default.target.wants/$unit
