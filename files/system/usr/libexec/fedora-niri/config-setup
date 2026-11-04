@@ -109,7 +109,14 @@ config_setup_main() {
     trap rollback_install EXIT INT TERM HUP
     if [[ "$was_installed" == true ]]; then
       snapshot_to "$transaction"
+    elif [[ -f "$manifest" ]]; then
+      [[ -d "$backup" ]] || {
+        echo "ERROR: Original configuration backup directory is missing." >&2
+        return 1
+      }
+      # A retry after a failed first install must keep the first-install backup.
     else
+      rm -rf -- "$backup"
       snapshot_to "$state_root/initial-snapshot"
       mv -- "$state_root/initial-snapshot/backup" "$backup"
       mv -- "$state_root/initial-snapshot/manifest" "$manifest"
