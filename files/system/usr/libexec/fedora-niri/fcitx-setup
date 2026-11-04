@@ -174,16 +174,26 @@ update_rime_config() {
 }
 
 start_fcitx() {
-  local uid current attempt
+  local uid attempt
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
-    echo "Replacing the running Fcitx5 daemon..."
-  else
-    echo "Starting Fcitx5..."
+    echo "Stopping the running Fcitx5 daemon before reloading its profile..."
+    fcitx5-remote -e
+    for attempt in {1..50}; do
+      if ! pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.2
+    done
+    if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
+      echo "ERROR: The existing Fcitx5 daemon did not exit." >&2
+      return 1
+    fi
   fi
 
-  nohup fcitx5 -rd >"$state_root/fcitx5.log" 2>&1 </dev/null &
+  echo "Starting Fcitx5..."
+  nohup fcitx5 -d >"$state_root/fcitx5.log" 2>&1 </dev/null &
 
   for attempt in {1..50}; do
     if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1 && fcitx5-remote -n >/dev/null 2>&1; then
@@ -209,6 +219,7 @@ after_already_installed() {
   command -v git >/dev/null 2>&1 || { echo "ERROR: git is required but was not found." >&2; return 1; }
   command -v fcitx5 >/dev/null 2>&1 || { echo "ERROR: fcitx5 was not found." >&2; return 1; }
   command -v fcitx5-remote >/dev/null 2>&1 || { echo "ERROR: fcitx5-remote was not found." >&2; return 1; }
+  command -v pgrep >/dev/null 2>&1 || { echo "ERROR: pgrep was not found." >&2; return 1; }
   update_rime_config
   write_profile
   clear_temporary_toggle_hotkey
