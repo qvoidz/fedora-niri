@@ -62,3 +62,4 @@ jobs:
           pr_event_number: ${{ github.event.number }}
           maximize_build_space: true
           skip_checkout: true
+          build_chunked_oci: true
