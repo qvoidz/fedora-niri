@@ -63,3 +63,4 @@ jobs:
           maximize_build_space: true
           skip_checkout: true
           build_chunked_oci: true
+          use_cache: true
