@@ -14,7 +14,7 @@ rollback_install_extra() {
 }
 
 paths_for() {
-  printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.config/fcitx5/profile' '.config/fcitx5/config' '.local/share/fcitx5/rime'
+  printf '%s\n' "$config_home/environment.d/90-fcitx5.conf" "$config_home/autostart/org.fcitx.Fcitx5.desktop" "$config_home/fcitx5/profile" "$config_home/fcitx5/config" "$data_home/fcitx5/rime"
 }
 
 before_uninstall() {
@@ -218,7 +218,12 @@ start_fcitx() {
   }
   printf 'Fcitx5 input methods detected:\n%s\n' "$available_methods"
   if ! grep -Fxq 'rime' <<< "$available_methods"; then
-    echo "ERROR: The Rime engine is not registered by the running Fcitx5 daemon. The profile entry alone cannot install an engine. Verify the fcitx5-rime RPM and inspect the Fcitx5 log." >&2
+    echo "ERROR: The Rime engine is not registered by the running Fcitx5 daemon. The profile entry alone cannot install an engine." >&2
+    rpm -ql fcitx5-rime > "$state_root/fcitx5-rime-files.log" 2>&1 || true
+    if command -v fcitx5-diagnose >/dev/null 2>&1; then
+      fcitx5-diagnose > "$state_root/fcitx5-diagnose.log" 2>&1 || true
+    fi
+    echo "Diagnostics saved under $state_root (fcitx5.log, fcitx5-rime-files.log, fcitx5-diagnose.log)." >&2
     return 1
   fi
 
