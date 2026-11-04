@@ -1,3 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-exec bash /usr/libexec/fedora-niri/config-setup nvim "$@"
+source /usr/libexec/fedora-niri/config-setup
+
+paths_for() {
+  printf '%s\n' '.config/nvim'
+}
+
+do_install() {
+  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+  git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
+  rm -rf "$home/.config/nvim/.git"
+}
+
+config_setup_main nvim "$@"
