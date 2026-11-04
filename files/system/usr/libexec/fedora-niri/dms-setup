@@ -12,7 +12,7 @@ before_uninstall() {
     echo "未找到 dms-greeter，无法撤销 Greeter 配置。" >&2
     return 1
   }
-  dms-greeter uninstall
+  dms-greeter uninstall --yes
   systemctl --user disable --now dms.service 2>/dev/null || true
 }
 
