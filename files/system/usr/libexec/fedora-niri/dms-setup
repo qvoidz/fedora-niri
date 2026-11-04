@@ -245,14 +245,19 @@ update_block(input_path, "touchpad", set_touchpad_scroll_factor)
 PY
   echo "Niri trackpoint disabled and touchpad scroll factor set to 0.2."
 
-  # Use GNOME Files (Nautilus) with Kitty in its right-click terminal menu.
+  # Optional integration: configure Nautilus Open Any Terminal when its schema is available.
+  # This must not fail the DMS setup; the core DMS/Niri configuration is independent of it.
   local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
-  if ! gsettings list-schemas | grep -Fxq "$schema"; then
-    echo "ERROR: Nautilus Open Any Terminal GSettings schema was not found." >&2
-    return 1
+  if ! command -v gsettings >/dev/null 2>&1; then
+    echo "WARNING: gsettings was not found; skipping optional Nautilus terminal integration."
+  elif ! gsettings list-schemas 2>/dev/null | grep -Fxq "$schema"; then
+    echo "WARNING: Nautilus Open Any Terminal GSettings schema was not found; skipping optional Kitty integration."
+  elif ! gsettings set "$schema" terminal kitty; then
+    echo "WARNING: Failed to set Kitty as the Nautilus terminal; continuing DMS setup."
+  else
+    echo "Nautilus terminal integration configured successfully."
+    command -v nautilus >/dev/null 2>&1 && nautilus -q 2>/dev/null || true
   fi
-  gsettings set "$schema" terminal kitty
-  nautilus -q 2>/dev/null || true
 }
 
 config_setup_main dms "$@"
