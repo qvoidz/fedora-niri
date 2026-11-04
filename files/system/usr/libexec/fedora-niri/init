@@ -7,7 +7,7 @@ state_root="${XDG_STATE_HOME:-$HOME/.local/state}/fedora-niri"
 mkdir -p "$state_root"
 exec 9>"$state_root/init.lock"
 flock -n 9 || { echo "Initialization is already running; skipping this login."; exit 0; }
-trap 'status=$?; printf "ERROR: Initialization failed at line %s (exit code %s). Next login will retry.\n" "${BASH_LINENO[0]:-$LINENO}" "$status" >&2; exit "$status"' ERR
+trap 'status=$?; printf "ERROR: Initialization failed at line %s (exit code %s). Next login will retry.\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
 deployment="$(ostree admin status --json | python3 -c '
 import json,sys
