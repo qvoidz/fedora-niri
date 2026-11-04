@@ -4,7 +4,7 @@ source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
   # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.config/DankMaterialShell' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
 }
 
 before_uninstall() {
@@ -51,9 +51,9 @@ do_install() {
   rm -f "$state_root/greeter-installing"
 
   # Set the default DMS interface font without replacing the user's other settings.
-  local settings="$home/.config/DankMaterialShell/settings.json"
+  local settings="$home/.config/dms/settings.json"
   [[ -f "$settings" ]] || {
-    echo "未找到 DMS settings.json；DMS 配置可能未生成默认文件。" >&2
+    echo "未找到 DMS settings.json（$settings）；DMS 配置可能未生成默认文件。" >&2
     return 1
   }
   command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
