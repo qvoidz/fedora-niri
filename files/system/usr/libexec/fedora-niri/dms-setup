@@ -13,8 +13,37 @@ restore_greetd_config() {
     sudo install -m 0644 "$original" /etc/greetd/config.toml
   elif [[ -f "$state_root/greetd-config-was-absent" ]]; then
     sudo rm -f /etc/greetd/config.toml
+  else
+    echo "ERROR: Original greetd configuration backup is missing." >&2
+    return 1
   fi
   rm -f "$original" "$state_root/greetd-config-was-present" "$state_root/greetd-config-was-absent"
+}
+
+config_setup_before_operation() {
+  local config=/etc/greetd/config.toml
+  rm -f "$state_root/greetd-operation-original" "$state_root/greetd-operation-was-absent"
+  if sudo test -e "$config"; then
+    sudo cp -a "$config" "$state_root/greetd-operation-original"
+  else
+    touch "$state_root/greetd-operation-was-absent"
+  fi
+}
+
+config_setup_after_operation() {
+  rm -f "$state_root/greetd-operation-original" "$state_root/greetd-operation-was-absent"
+}
+
+restore_greetd_operation() {
+  if [[ -f "$state_root/greetd-operation-original" ]]; then
+    sudo install -m 0644 "$state_root/greetd-operation-original" /etc/greetd/config.toml
+  elif [[ -f "$state_root/greetd-operation-was-absent" ]]; then
+    sudo rm -f /etc/greetd/config.toml
+  else
+    echo "ERROR: Per-operation greetd recovery snapshot is missing." >&2
+    return 1
+  fi
+  rm -f "$state_root/greetd-operation-original" "$state_root/greetd-operation-was-absent"
 }
 
 before_uninstall() {
@@ -36,8 +65,10 @@ rollback_install_extra() {
   if [[ -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ]]; then
     dms-greeter uninstall --yes || result=1
   fi
-  restore_greetd_config || result=1
-  restore || result=1
+  restore_greetd_operation || result=1
+  if [[ "$was_installed" != true ]]; then
+    rm -f "$state_root/greetd-config.toml.original" "$state_root/greetd-config-was-present" "$state_root/greetd-config-was-absent"
+  fi
   return "$result"
 }
 
@@ -97,11 +128,13 @@ do_install() {
     return 1
   }
   local greetd_config=/etc/greetd/config.toml
-  if [[ -e "$greetd_config" ]]; then
-    sudo cp -a "$greetd_config" "$state_root/greetd-config.toml.original"
-    touch "$state_root/greetd-config-was-present"
-  else
-    touch "$state_root/greetd-config-was-absent"
+  if [[ ! -e "$state_root/greetd-config.toml.original" && ! -e "$state_root/greetd-config-was-absent" ]]; then
+    if sudo test -e "$greetd_config"; then
+      sudo cp -a "$greetd_config" "$state_root/greetd-config.toml.original"
+      touch "$state_root/greetd-config-was-present"
+    else
+      touch "$state_root/greetd-config-was-absent"
+    fi
   fi
   touch "$state_root/greeter-installing"
   dms-greeter install --yes
