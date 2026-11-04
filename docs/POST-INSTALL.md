@@ -8,7 +8,7 @@
 - 首次清理完成标记与系统初始化标记分开保存。后续步骤失败不会重复执行完整清理。
 - 通过 booted OSTree deployment checksum 判断系统升级，不依赖镜像 tag。
 - 新部署先备份受管理的 Niri、Quickshell、DMS、Kitty、Neovim 配置，再刷新配置。
-- 按 Niri、DMS、Kitty、Neovim 顺序执行。Fcitx5 保持手动配置。
+- 按 DMS、Niri、Kitty、Neovim、Fcitx5 顺序执行。
 - 全部步骤成功后才写入部署标记；失败时下次登录重试。
 
 备份位置：\`~/.local/state/fedora-niri/upgrade-backups/<deployment-checksum>/\`。
@@ -34,6 +34,8 @@ XDG user-dirs 脚本及 Just 任务已移除。
 每个配置模块使用 \`config-setup\` 保存原始配置、记录安装状态，并在失败时回滚。自动升级使用 refresh 事务快照，避免覆盖最初安装时的卸载恢复备份。Kitty 仅管理指定字段，不替换整个 \`kitty.conf\`。
 
 ## DMS Greeter 与中文环境
+
+镜像提供 `/etc/greetd/config.toml`，默认会以 `greeter` 系统用户运行 `/usr/bin/dms-greeter --command niri`。`greetd.service` 已在镜像构建时启用，因此开机进入 Dux Greeter 登录界面。DMS 初始化仍会运行 `dms-greeter install --yes` 完成账户、权限、PAM 和 Greeter 配置，并在命令前设置 `LANG=zh_CN.UTF-8`。
 
 DMS setup 以普通用户身份执行 \`dms-greeter install --yes\`，再在 greetd \`[default_session].command\` 的启动边界设置 \`LANG=zh_CN.UTF-8\`。原始 greetd 配置保存在 DMS 模块状态目录，卸载时恢复。
 
