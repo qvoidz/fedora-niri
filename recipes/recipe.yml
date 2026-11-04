@@ -23,19 +23,21 @@ modules:
         - greetd
         - dms
         - dux-greeter
+        - adw-gtk3-theme
         - repo: copr:copr.fedorainfracloud.org:yalter:niri-git
           packages:
             - niri
         - xwayland-satellite
         - libseat
 
-        # ── Dux Shell and its components (Dux Files intentionally omitted) ─
+        # ── Dux Shell and its components ────────────────────────────────
         - quickshell
         - matugen
         - cliphist
         - wl-clipboard
         - dux-search
         - dux-calendar
+        - dux-files
         - dux-gop
         - cava
         - qt6-qtmultimedia
@@ -43,11 +45,12 @@ modules:
         - accountsservice
         - power-profiles-daemon
         - cups-pk-helper
-        - i2c-tools
+        - khal
 
         # ── File manager and terminal integration ───────────────────────
         - nautilus
         - nautilus-open-any-terminal
+        - kf6-kimageformats
         - kitty
 
         # ── System and session utilities ────────────────────────────────
@@ -58,6 +61,9 @@ modules:
         - just
         - xdg-user-dirs
         - fish
+        - i2c-tools
+        - ddcutil
+        - fprintd
 
         # ── Fonts ───────────────────────────────────────────────────────
         - google-noto-sans-fonts
@@ -113,13 +119,6 @@ modules:
         - firefox
         - htop
         - nvtop
-        - kf6-kimageformats
-        - i2c-tools
-        - ddcutil
-        - khal
-        - fprintd
-        - dux-files
-        - adw-gtk3-theme
 
   - type: files
     files:
