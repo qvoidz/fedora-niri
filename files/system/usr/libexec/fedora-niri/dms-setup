@@ -8,6 +8,11 @@ paths_for() {
 }
 
 before_uninstall() {
+  command -v dms-greeter >/dev/null || {
+    echo "未找到 dms-greeter，无法撤销 Greeter 配置。" >&2
+    return 1
+  }
+  dms-greeter uninstall
   systemctl --user disable --now dms.service 2>/dev/null || true
 }
 
@@ -15,20 +20,40 @@ after_uninstall() {
   systemctl --user daemon-reload 2>/dev/null || true
 }
 
+# Greeter changes system-level files and permissions outside the user backup.
+# Undo those changes as part of config-setup's failed-install rollback.
+rollback_install_extra() {
+  local result=0
+  if [[ -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ]]; then
+    if command -v dms-greeter >/dev/null && dms-greeter uninstall; then
+      rm -f "$state_root/greeter-installing" "$state_root/greeter-configured"
+    else
+      echo "警告：DMS Greeter 回滚失败，请手动运行 dms-greeter uninstall。" >&2
+      result=1
+    fi
+  fi
+  restore || result=1
+  return "$result"
+}
+
 do_install() {
   command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
 
-  # Install every optional Dux component except Dux Files; retain Nautilus as file manager.
+  # Configure Dux components; this does not install system packages.
   duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y
 
-  # Fedora Atomic/bootc: duxinstall layers the greeter package but does not configure it.
+  # On Fedora Atomic/bootc, the package is already in the image.
+  # Run the post-deployment Greeter setup as the normal user.
   command -v dms-greeter >/dev/null || { echo "未找到 dms-greeter；请确认 dux-greeter 已加入系统镜像。" >&2; return 1; }
+  touch "$state_root/greeter-installing"
   dms-greeter install --yes
+  touch "$state_root/greeter-configured"
+  rm -f "$state_root/greeter-installing"
 
   # Set the default DMS interface font without replacing the user's other settings.
   local settings="$home/.config/DankMaterialShell/settings.json"
   [[ -f "$settings" ]] || {
-    echo "未找到 DMS settings.json；DMS 安装可能未生成默认配置。" >&2
+    echo "未找到 DMS settings.json；DMS 配置可能未生成默认文件。" >&2
     return 1
   }
   command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
