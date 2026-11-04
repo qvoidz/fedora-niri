@@ -17,11 +17,12 @@ test_cleanup="$test_root/cleanup"
 sed "s|^source /usr/libexec/fedora-niri/logging$|source \"$logging_source\"|" "$cleanup_source" > "$test_cleanup"
 chmod 0755 "$test_cleanup"
 
-# Decline all cleanup prompts except the explicit state-data confirmation.
+# Decline the five module prompts and Flatpak cleanup, confirm state deletion,
+# then decline ~/.local, ~/.var, ~/.config, ~/.cache, XDG folders and HOME cleanup.
 {
-  for _ in {1..7}; do printf 'n\n'; done
+  for _ in {1..6}; do printf 'n\n'; done
   printf 'y\n'
-  for _ in {1..4}; do printf 'n\n'; done
+  for _ in {1..6}; do printf 'n\n'; done
 } | HOME="$test_home" XDG_STATE_HOME="$test_state" bash "$test_cleanup"
 
 [[ ! -e "$test_state" ]] || {
