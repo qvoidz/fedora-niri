@@ -142,7 +142,7 @@ PY
 
 update_rime_config() {
   local rime_dir="$home/.local/share/fcitx5/rime"
-  local tmp clone_status
+  local clone_status
   mkdir -p "$home/.local/share/fcitx5"
 
   if [[ -d "$rime_dir/.git" ]]; then
