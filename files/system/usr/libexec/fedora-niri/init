@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 : "${HOME:?ERROR: HOME is not set}"
+source /usr/libexec/fedora-niri/logging
+setup_logging init
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}/fedora-niri"
 mkdir -p "$state_root"
 exec 9>"$state_root/init.lock"
