@@ -2,57 +2,157 @@
 set -Eeuo pipefail
 source /usr/libexec/fedora-niri/config-setup
 
+# Kitty is managed field-by-field; never snapshot or replace kitty.conf.
 paths_for() {
-  printf '%s\n' '.config/kitty/kitty.conf'
+  :
 }
 
 config_setup_init() {
-  kitty_added_file="$state_root/kitty-added-lines"
-  kitty_created_file="$state_root/kitty-created-config"
+  kitty_state_file="$state_root/kitty-fields.json"
 }
 
-append_kitty_settings() {
-  local conf="$home/.config/kitty/kitty.conf" line key
+set_kitty_fields() {
+  local conf="$home/.config/kitty/kitty.conf"
   mkdir -p "$(dirname "$conf")"
-  [[ -e "$conf" ]] || touch "$conf"
-  : > "$kitty_added_file"
-  for line in "$@"; do
-    key="${line%% *}"
-    if grep -Eq "^[[:space:]]*${key}([[:space:]]|$)" "$conf"; then
-      continue
-    fi
-    printf '%s\n' "$line" >> "$conf"
-    printf '%s\n' "$line" >> "$kitty_added_file"
-  done
+  python3 - "$conf" "$kitty_state_file" <<'PY'
+import json
+import os
+import re
+import stat
+import sys
+import tempfile
+
+config_path, state_path = sys.argv[1:3]
+settings = {
+    "font_family": "CaskaydiaCove Nerd Font",
+    "bold_font": "auto",
+    "italic_font": "auto",
+    "bold_italic_font": "auto",
+    "shell": "/usr/bin/fish",
+    "background_opacity": "0.8",
+}
+pattern = re.compile(r"^\s*([a-zA-Z0-9_]+)(?:\s+|$)")
+existed = os.path.isfile(config_path)
+try:
+    with open(config_path, encoding="utf-8") as stream:
+        lines = stream.readlines()
+except FileNotFoundError:
+    lines = []
+
+state = {"config_existed": existed, "fields": {}}
+for key, value in settings.items():
+    matches = [line.rstrip("\n") for line in lines
+               if (m := pattern.match(line)) and m.group(1) == key
+               and not line.lstrip().startswith("#")]
+    state["fields"][key] = {"present": bool(matches), "lines": matches}
+
+# Persist the complete rollback data before touching kitty.conf.
+os.makedirs(os.path.dirname(state_path), exist_ok=True)
+fd, temp_state = tempfile.mkstemp(prefix=".kitty-fields.", dir=os.path.dirname(state_path))
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(state, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+    os.replace(temp_state, state_path)
+except BaseException:
+    try: os.unlink(temp_state)
+    except FileNotFoundError: pass
+    raise
+
+for key, value in settings.items():
+    found = False
+    updated = []
+    for line in lines:
+        match = pattern.match(line)
+        if match and match.group(1) == key and not line.lstrip().startswith("#"):
+            if not found:
+                updated.append(f"{key} {value}\n")
+                found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(f"{key} {value}\n")
+    lines = updated
+
+mode = stat.S_IMODE(os.stat(config_path).st_mode) if existed else 0o644
+fd, temp_config = tempfile.mkstemp(prefix=".kitty.conf.", dir=os.path.dirname(config_path))
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.writelines(lines)
+    os.chmod(temp_config, mode)
+    os.replace(temp_config, config_path)
+except BaseException:
+    try: os.unlink(temp_config)
+    except FileNotFoundError: pass
+    raise
+PY
 }
 
-remove_kitty_settings() {
-  local conf="$home/.config/kitty/kitty.conf" line tmp
-  [[ -f "$kitty_added_file" ]] || { echo "未找到 Kitty 配置变更记录；保留现有文件。"; return 0; }
-  if [[ -f "$conf" ]]; then
-    while IFS= read -r line; do
-      [[ -n "$line" ]] || continue
-      tmp="$(mktemp)"
-      awk -v target="$line" 'BEGIN { removed=0 } $0 == target && !removed { removed=1; next } { print }' "$conf" > "$tmp"
-      if cmp -s "$conf" "$tmp"; then
-        echo "检测到用户已修改或删除配置行，保留：$line" >&2
-      else
-        cat "$tmp" > "$conf"
-      fi
-      rm -f "$tmp"
-    done < "$kitty_added_file"
-    if [[ -f "$kitty_created_file" && ! -s "$conf" ]]; then rm -f "$conf"; fi
-  fi
+restore_kitty_fields() {
+  local conf="$home/.config/kitty/kitty.conf"
+  [[ -f "$kitty_state_file" ]] || {
+    echo "未找到 Kitty 字段变更记录，跳过字段恢复。" >&2
+    return 0
+  }
+  python3 - "$conf" "$kitty_state_file" <<'PY'
+import json
+import os
+import re
+import stat
+import sys
+import tempfile
+
+config_path, state_path = sys.argv[1:3]
+with open(state_path, encoding="utf-8") as stream:
+    state = json.load(stream)
+try:
+    with open(config_path, encoding="utf-8") as stream:
+        lines = stream.readlines()
+except FileNotFoundError:
+    raise SystemExit(0)
+
+pattern = re.compile(r"^\s*([a-zA-Z0-9_]+)(?:\s+|$)")
+for key, original in state["fields"].items():
+    indexes = [i for i, line in enumerate(lines)
+               if (m := pattern.match(line)) and m.group(1) == key
+               and not line.lstrip().startswith("#")]
+    # If the field was removed after installation, leave it alone.
+    if not indexes:
+        continue
+    first = indexes[0]
+    replacement = [line + "\n" for line in original["lines"]]
+    remove = set(indexes)
+    lines = [line for i, line in enumerate(lines) if i not in remove]
+    lines[first:first] = replacement
+
+mode = stat.S_IMODE(os.stat(config_path).st_mode)
+fd, temp_config = tempfile.mkstemp(prefix=".kitty.conf.", dir=os.path.dirname(config_path))
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.writelines(lines)
+    os.chmod(temp_config, mode)
+    os.replace(temp_config, config_path)
+except BaseException:
+    try: os.unlink(temp_config)
+    except FileNotFoundError: pass
+    raise
+
+if not state["config_existed"] and not lines:
+    os.unlink(config_path)
+PY
 }
 
 rollback_install_extra() {
-  remove_kitty_settings
+  restore_kitty_fields
+}
+
+after_uninstall() {
+  restore_kitty_fields
 }
 
 do_install() {
-  local conf="$home/.config/kitty/kitty.conf"
-  [[ -e "$conf" ]] || touch "$kitty_created_file"
-  append_kitty_settings "shell /usr/bin/fish" "background_opacity 0.8"
+  command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
+  set_kitty_fields
 }
 
 config_setup_main kitty "$@"
