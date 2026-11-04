@@ -7,26 +7,58 @@ paths_for() {
 }
 
 do_install() {
-  command -v git >/dev/null || { echo "ERROR: git is required but was not found." >&2; return 1; }
+  command -v git >/dev/null 2>&1 || {
+    echo "ERROR: git is required to install the LazyVim starter, but it was not found." >&2
+    return 1
+  }
+
+  local destination="$home/.config/nvim"
+  local staging previous="" clone_status
   mkdir -p "$home/.config"
-  if [[ -e "$home/.config/nvim" || -L "$home/.config/nvim" ]]; then
-    echo "Existing Neovim configuration found; preserving it."
-    return 0
+  staging="$(mktemp -d "$home/.config/.nvim-setup.XXXXXX")"
+
+  if git clone --depth 1 --branch main https://github.com/LazyVim/starter.git "$staging"; then
+    :
+  else
+    clone_status=$?
+    rm -rf -- "$staging"
+    echo "ERROR: Failed to clone https://github.com/LazyVim/starter.git (exit code $clone_status)." >&2
+    return "$clone_status"
   fi
 
-  local temporary
-  temporary="$(mktemp -d "$home/.config/.nvim-setup.XXXXXX")"
-  if ! git clone --depth 1 https://github.com/LazyVim/starter "$temporary"; then
-    rm -rf -- "$temporary"
-    echo "ERROR: Failed to clone the LazyVim starter configuration." >&2
+  if [[ ! -s "$staging/init.lua" || ! -d "$staging/lua" ]]; then
+    rm -rf -- "$staging"
+    echo "ERROR: The downloaded LazyVim starter is incomplete; init.lua or lua/ is missing." >&2
     return 1
   fi
-  rm -rf -- "$temporary/.git"
-  if ! mv -- "$temporary" "$home/.config/nvim"; then
-    rm -rf -- "$temporary"
-    echo "ERROR: Failed to install the Neovim configuration." >&2
+
+  if [[ -e "$destination" || -L "$destination" ]]; then
+    previous="$(mktemp -d "$home/.config/.nvim-previous.XXXXXX")"
+    rmdir -- "$previous"
+    if ! mv -- "$destination" "$previous"; then
+      rm -rf -- "$staging"
+      echo "ERROR: Could not move the existing Neovim configuration aside." >&2
+      return 1
+    fi
+  fi
+
+  if ! mv -- "$staging" "$destination"; then
+    if [[ -n "$previous" && ( -e "$previous" || -L "$previous" ) ]]; then
+      mv -- "$previous" "$destination" || {
+        echo "ERROR: New Neovim configuration installation failed and the previous configuration could not be restored from $previous." >&2
+        return 1
+      }
+    fi
+    rm -rf -- "$staging"
+    echo "ERROR: Could not place the LazyVim starter at $destination." >&2
     return 1
   fi
+
+  if [[ -n "$previous" ]]; then
+    rm -rf -- "$previous"
+  fi
+
+  echo "LazyVim starter installed successfully at $destination."
 }
 
 config_setup_main nvim "$@"
