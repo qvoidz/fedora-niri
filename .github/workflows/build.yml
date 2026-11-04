@@ -39,6 +39,9 @@ jobs:
       - name: Test configuration setup transactions
         run: bash tests/test-config-setup.sh
 
+      - name: Test Neovim and Fcitx setup
+        run: bash tests/test-user-setup.sh
+
 
       - name: Validate shell script syntax
         run: |
