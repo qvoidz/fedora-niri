@@ -13,8 +13,6 @@ kitty-setup yes="":
 fcitx-setup yes="":
     exec bash /usr/libexec/fedora-niri/fcitx-setup {{yes}}
 
-fonts-setup yes="":
-    exec bash /usr/libexec/fedora-niri/fonts-setup {{yes}}
 
 nvim-setup yes="":
     exec bash /usr/libexec/fedora-niri/nvim-setup {{yes}}
