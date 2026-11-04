@@ -99,8 +99,8 @@ PY
 restore_kitty_fields() {
   local conf="$home/.config/kitty/kitty.conf"
   [[ -f "$kitty_state_file" ]] || {
-    echo "WARNING: Kitty field change record not found; skipping field restoration." >&2
-    return 0
+    echo "ERROR: Kitty field restoration record is missing; refusing to discard module state." >&2
+    return 1
   }
   python3 - "$conf" "$kitty_state_file" <<'PY'
 import json
