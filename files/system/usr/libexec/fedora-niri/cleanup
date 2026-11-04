@@ -186,8 +186,11 @@ fi
 if ask "Restore and remove Neovim configuration?"; then
   run_module_uninstall nvim || true
 fi
-if ask "Restore and remove DMS, Niri, Quickshell and Greeter configuration?"; then
+if ask "Restore and remove DMS and Greeter configuration?"; then
   run_module_uninstall dms || true
+fi
+if ask "Restore and remove Niri and Quickshell configuration?"; then
+  run_module_uninstall niri || true
 fi
 
 if ask "Remove extra system and user Flatpak applications not declared in the BlueBuild recipe?"; then
