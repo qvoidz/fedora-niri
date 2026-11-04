@@ -37,7 +37,7 @@ write_autostart() {
 [Desktop Entry]
 Type=Application
 Name=Fcitx 5
-Exec=/usr/bin/fcitx5 -d --replace
+Exec=/usr/bin/fcitx5 -rd
 Icon=fcitx
 Terminal=false
 Categories=System;
@@ -178,12 +178,12 @@ start_fcitx() {
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
-    echo "Reloading Fcitx5 configuration..."
-    fcitx5-remote -r
+    echo "Replacing the running Fcitx5 daemon..."
   else
     echo "Starting Fcitx5..."
-    nohup fcitx5 -d --replace >"$state_root/fcitx5.log" 2>&1 </dev/null &
   fi
+
+  nohup fcitx5 -rd >"$state_root/fcitx5.log" 2>&1 </dev/null &
 
   for attempt in {1..50}; do
     if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1 && fcitx5-remote -n >/dev/null 2>&1; then
