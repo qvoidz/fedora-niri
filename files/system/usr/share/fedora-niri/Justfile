@@ -5,22 +5,22 @@ default:
     @just --list
 
 dms-setup yes="":
-    exec /usr/libexec/fedora-niri/dms-setup {{yes}}
+    exec bash /usr/libexec/fedora-niri/dms-setup {{yes}}
 
 kitty-setup yes="":
-    exec /usr/libexec/fedora-niri/kitty-setup {{yes}}
+    exec bash /usr/libexec/fedora-niri/kitty-setup {{yes}}
 
 fcitx-setup yes="":
-    exec /usr/libexec/fedora-niri/fcitx-setup {{yes}}
+    exec bash /usr/libexec/fedora-niri/fcitx-setup {{yes}}
 
 fonts-setup yes="":
-    exec /usr/libexec/fedora-niri/fonts-setup {{yes}}
+    exec bash /usr/libexec/fedora-niri/fonts-setup {{yes}}
 
 nvim-setup yes="":
-    exec /usr/libexec/fedora-niri/nvim-setup {{yes}}
+    exec bash /usr/libexec/fedora-niri/nvim-setup {{yes}}
 
 cleanup yes="":
-    exec /usr/libexec/fedora-niri/cleanup {{yes}}
+    exec bash /usr/libexec/fedora-niri/cleanup {{yes}}
 
 user-dirs yes="":
-    exec /usr/libexec/fedora-niri/user-dirs {{yes}}
+    exec bash /usr/libexec/fedora-niri/user-dirs {{yes}}
