@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'status=$?; printf "ERROR: install-clash-verge-rev failed at line %s (exit code %s).\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
 repo="clash-verge-rev/clash-verge-rev"
 api_url="https://api.github.com/repos/${repo}/releases/latest"
@@ -39,7 +40,7 @@ PY
 )
 
 if [[ ${#asset_info[@]} -ne 3 ]]; then
-  echo "无法解析 Clash Verge Rev Release 资源。" >&2
+  echo "ERROR: Could not parse the Clash Verge Rev release asset metadata." >&2
   exit 1
 fi
 
@@ -52,3 +53,5 @@ curl --fail --location --retry 3 --output "${rpm_path}" "${rpm_url}"
 echo "${expected_sha256}  ${rpm_path}" | sha256sum --check --status
 
 dnf install --assumeyes "${rpm_path}"
+
+echo "Clash Verge Rev installation completed successfully."
