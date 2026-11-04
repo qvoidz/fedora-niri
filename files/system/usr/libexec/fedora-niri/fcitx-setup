@@ -234,10 +234,9 @@ start_fcitx() {
     return 1
   fi
 
-  fcitx5-remote -s rime
   current="$(fcitx5-remote -n)"
-  if [[ "$current" != "rime" ]]; then
-    echo "ERROR: Fcitx5 is running, but Rime is not the active input method (current: ${current:-unknown}). Check that fcitx5-rime is installed and inspect the Fcitx5 profile." >&2
+  if [[ "$current" != "keyboard-us" ]]; then
+    echo "ERROR: Fcitx5 did not keep keyboard-us as the default input method (current: ${current:-unknown}). Check the Fcitx5 profile." >&2
     return 1
   fi
 }
@@ -276,7 +275,7 @@ do_install() {
   clear_temporary_toggle_hotkey
   start_fcitx
 
-  echo "Fcitx5 and Rime configured successfully. Rime is the default input method; log out and back in to apply environment variables."
+  echo "Fcitx5 and Rime configured successfully. Rime is first in the input method list; keyboard-us remains the default. Log out and back in to apply environment variables."
 }
 
 config_setup_main fcitx "$@"
