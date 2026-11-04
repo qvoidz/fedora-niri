@@ -39,7 +39,7 @@ just
 | `just dms-setup` | 配置 Dux 的 Niri/Kitty 桌面环境、初始化 DMS Greeter、设置 DMS 默认字体，并配置 Nautilus 的 Kitty 右键终端（不负责安装系统 RPM） |
 | `just kitty-setup` | 管理 Kitty 配置（Fish shell、透明度） |
 | `just fcitx-setup` | 配置 Fcitx5 自动启动、会话环境变量和雾凇拼音；每次运行都会 fast-forward 更新已有的雾凇拼音 Git 仓库 |
-| `just nvim-setup` | 安装 LazyVim 官方 Starter |
+| `just nvim-setup` | 部署 LazyVim 官方 Starter 配置 |
 | `just user-dirs` | 将 XDG 文档、下载、图片等标准目录固定为英文名称 |
 | `just cleanup` | 按类别清理当前用户配置、缓存、应用数据、个人文件和用户级 Flatpak |
 
@@ -53,7 +53,7 @@ just
 
 ### 英文用户目录
 
-`just user-dirs` 使用 XDG User Directories 标准更新 `~/.config/user-dirs.dirs`，并禁用自动本地化重写，避免中文桌面 locale 再次生成中文目录。若中英文目录同时存在，不会自动合并或删除旧目录。
+`just user-dirs` 会将已有中文标准目录重命名为英文目录（目标目录不存在时）、创建缺失目录、更新并验证 XDG 用户目录映射，同时禁用自动本地化重写。若中英文目录同时存在，会保留两者，不会自动合并或删除旧目录。
 
 ## 可选功能
 
