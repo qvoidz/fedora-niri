@@ -102,7 +102,7 @@ sudo virsh net-start default
 - Microsoft Edge：Microsoft DNF 仓库。
 - Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。
 - Dux、Niri、Nautilus 终端扩展：通过各自 COPR 仓库安装。
-- GitHub Actions 在 Pull Request、推送和定时任务时构建镜像；Clash Verge Rev 更新工作流每天检查官方稳定版。
+- GitHub Actions 在 Pull Request、推送和每日定时任务时构建镜像；Clash Verge Rev 安装脚本在构建时获取最新稳定版，并校验 Release 提供的 SHA-256。
 
 ## 签名验证
 
