@@ -36,6 +36,9 @@ jobs:
           ref: master
           path: .upstream/dux-shell
 
+      - name: Test configuration setup transactions
+        run: bash tests/test-config-setup.sh
+
       - name: Validate shell script syntax
         run: |
           set -euo pipefail
