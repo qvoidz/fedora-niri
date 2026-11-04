@@ -6,9 +6,11 @@ config_setup_main() {
   shift
   home="${HOME:?HOME is not set}"
   yes=false
+  uninstall_only=false
   while (($#)); do
     case "$1" in
       -y|--yes) yes=true ;;
+      --uninstall) uninstall_only=true ;;
       *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;;
     esac
     shift
@@ -179,6 +181,10 @@ config_setup_main() {
   }
 
   echo "Managing configuration: $module"
+  if [[ "$uninstall_only" == true ]]; then
+    uninstall_module
+    exit $?
+  fi
   if [[ "$yes" == true ]]; then
     install_module
     exit $?
