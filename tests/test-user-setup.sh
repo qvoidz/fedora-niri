@@ -110,9 +110,130 @@ HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH
 
 profile="$fcitx_home/.config/fcitx5/profile"
 grep -Fqx 'DefaultIM=rime' "$profile"
-rime_line="$(grep -n -m1 '^Name=rime$' "$profile" | cut -d: -f1)"
-keyboard_line="$(grep -n -m1 '^Name=keyboard-us$' "$profile" | cut -d: -f1)"
-(( rime_line < keyboard_line ))
+grep -Fqx 'Default Layout=us' "$profile"
+keyboard_line="$(grep -n -m1 '^Name=keyboard-us
+[[ "$(cat "$FCITX_CURRENT")" == "rime" ]]
+grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
+grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
+grep -Fqx 'AltTriggerKeys=' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'TriggerKeys=Control+space' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
+[[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
+[[ -s "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log" ]]
+grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
+
+HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
+grep -Fqx "AltTriggerKeys=Shift_L" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "TriggerKeys=Control+space" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
+[[ ! -e "$fcitx_home/.local/share/fcitx5/rime" ]]
+[[ ! -e "$fcitx_home/.config/environment.d/90-fcitx5.conf" ]]
+
+# Custom XDG roots must be used and must participate in backup/restore.
+xdg_home="$test_root/xdg-home"
+xdg_config="$xdg_home/config"
+xdg_data="$xdg_home/data"
+mkdir -p "$xdg_home" "$xdg_config/fcitx5" "$xdg_config/environment.d"
+printf 'custom-original-profile\\n' > "$xdg_config/fcitx5/profile"
+printf 'CUSTOM_ENV=original\\n' > "$xdg_config/environment.d/90-fcitx5.conf"
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --yes
+[[ -f "$xdg_config/fcitx5/profile" ]]
+[[ -f "$xdg_config/environment.d/90-fcitx5.conf" ]]
+[[ -f "$xdg_data/fcitx5/rime/.git/HEAD" ]]
+[[ ! -e "$xdg_home/.config/fcitx5/profile" ]]
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --uninstall --yes
+[[ "$(cat "$xdg_config/fcitx5/profile")" == "custom-original-profile" ]]
+[[ "$(cat "$xdg_config/environment.d/90-fcitx5.conf")" == "CUSTOM_ENV=original" ]]
+[[ ! -e "$xdg_data/fcitx5/rime" ]]
+
+# Fcitx remains an explicit Just action; it must not be wired into login init.
+! grep -Fq 'run_setup fcitx-setup' "$init_script"
+grep -Fq 'run_setup nvim-setup' "$init_script"
+
+# A profile entry must not be treated as proof that the Rime engine exists.
+missing_rime_home="$test_root/missing-rime-home"
+mkdir -p "$missing_rime_home"
+set +e
+HOME="$missing_rime_home" XDG_STATE_HOME="$test_root/missing-rime-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" FCITX_METHODS=keyboard-us \
+  bash "$fcitx_test" --yes
+missing_rime_status=$?
+set -e
+[[ "$missing_rime_status" -ne 0 ]]
+grep -Fq 'Rime engine is not registered' "$test_root/missing-rime-state/fedora-niri/logs/fcitx-setup.log"
+
+
+echo "PASS: LazyVim installation/restore and Fcitx5 Rime setup/restore."
+ "$profile" | cut -d: -f1)"
+rime_line="$(grep -n -m1 '^Name=rime
+[[ "$(cat "$FCITX_CURRENT")" == "rime" ]]
+grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
+grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
+grep -Fqx 'AltTriggerKeys=' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'TriggerKeys=Control+space' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
+[[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
+[[ -s "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log" ]]
+grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
+
+HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
+grep -Fqx "AltTriggerKeys=Shift_L" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "TriggerKeys=Control+space" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
+[[ ! -e "$fcitx_home/.local/share/fcitx5/rime" ]]
+[[ ! -e "$fcitx_home/.config/environment.d/90-fcitx5.conf" ]]
+
+# Custom XDG roots must be used and must participate in backup/restore.
+xdg_home="$test_root/xdg-home"
+xdg_config="$xdg_home/config"
+xdg_data="$xdg_home/data"
+mkdir -p "$xdg_home" "$xdg_config/fcitx5" "$xdg_config/environment.d"
+printf 'custom-original-profile\\n' > "$xdg_config/fcitx5/profile"
+printf 'CUSTOM_ENV=original\\n' > "$xdg_config/environment.d/90-fcitx5.conf"
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --yes
+[[ -f "$xdg_config/fcitx5/profile" ]]
+[[ -f "$xdg_config/environment.d/90-fcitx5.conf" ]]
+[[ -f "$xdg_data/fcitx5/rime/.git/HEAD" ]]
+[[ ! -e "$xdg_home/.config/fcitx5/profile" ]]
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --uninstall --yes
+[[ "$(cat "$xdg_config/fcitx5/profile")" == "custom-original-profile" ]]
+[[ "$(cat "$xdg_config/environment.d/90-fcitx5.conf")" == "CUSTOM_ENV=original" ]]
+[[ ! -e "$xdg_data/fcitx5/rime" ]]
+
+# Fcitx remains an explicit Just action; it must not be wired into login init.
+! grep -Fq 'run_setup fcitx-setup' "$init_script"
+grep -Fq 'run_setup nvim-setup' "$init_script"
+
+# A profile entry must not be treated as proof that the Rime engine exists.
+missing_rime_home="$test_root/missing-rime-home"
+mkdir -p "$missing_rime_home"
+set +e
+HOME="$missing_rime_home" XDG_STATE_HOME="$test_root/missing-rime-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" FCITX_METHODS=keyboard-us \
+  bash "$fcitx_test" --yes
+missing_rime_status=$?
+set -e
+[[ "$missing_rime_status" -ne 0 ]]
+grep -Fq 'Rime engine is not registered' "$test_root/missing-rime-state/fedora-niri/logs/fcitx-setup.log"
+
+
+echo "PASS: LazyVim installation/restore and Fcitx5 Rime setup/restore."
+ "$profile" | cut -d: -f1)"
+(( keyboard_line < rime_line ))
 [[ "$(cat "$FCITX_CURRENT")" == "rime" ]]
 grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
 grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
