@@ -38,7 +38,7 @@ print(digest.removeprefix("sha256:"))
 PY
 )
 
-if (("${#asset_info[@]}" != 3)); then
+if [[ ${#asset_info[@]} -ne 3 ]]; then
   echo "无法解析 Clash Verge Rev Release 资源。" >&2
   exit 1
 fi
