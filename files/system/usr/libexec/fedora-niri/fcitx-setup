@@ -92,31 +92,31 @@ for line in lines:
     stripped = line.strip()
     if stripped.startswith("[") and stripped.endswith("]"):
         if section == "Hotkey" and not written_key:
-            output.append("AltTriggerKeys=\\n")
+            output.append("AltTriggerKeys=\n")
             written_key = True
         section = stripped[1:-1]
         found_section = found_section or section == "Hotkey"
         output.append(line)
         continue
 
-    if section == "Hotkey" and re.match(r"^\\s*AltTriggerKeys\\s*=", line):
+    if section == "Hotkey" and re.match(r"^\s*AltTriggerKeys\s*=", line):
         if not written_key:
-            output.append("AltTriggerKeys=\\n")
+            output.append("AltTriggerKeys=\n")
             written_key = True
         continue
 
     output.append(line)
 
 if section == "Hotkey" and not written_key:
-    output.append("AltTriggerKeys=\\n")
+    output.append("AltTriggerKeys=\n")
     written_key = True
 
 if not found_section:
-    if output and not output[-1].endswith("\\n"):
-        output[-1] += "\\n"
+    if output and not output[-1].endswith("\n"):
+        output[-1] += "\n"
     if output and output[-1].strip():
-        output.append("\\n")
-    output.extend(["[Hotkey]\\n", "AltTriggerKeys=\\n"])
+        output.append("\n")
+    output.extend(["[Hotkey]\n", "AltTriggerKeys=\n"])
 
 directory = os.path.dirname(path)
 fd, temporary = tempfile.mkstemp(prefix=".fcitx-config.", dir=directory)
