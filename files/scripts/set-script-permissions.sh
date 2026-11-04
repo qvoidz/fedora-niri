@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+source /usr/libexec/fedora-niri/logging
+setup_logging set-script-permissions
 directory=/usr/libexec/fedora-niri
 [[ -d "$directory" ]] || { echo "ERROR: Fedora Niri script directory is missing: $directory" >&2; exit 1; }
 find "$directory" -maxdepth 1 -type f -exec chmod 0755 {} +
