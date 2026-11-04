@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-: "${HOME:?HOME is not set}"
+: "${HOME:?ERROR: HOME is not set}"
+trap 'status=$?; printf "ERROR: user-dirs failed at line %s (exit code %s).\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 while (($#)); do
-  case "$1" in -y|--yes) ;; *) echo "未知参数：$1" >&2; exit 2 ;; esac
+  case "$1" in -y|--yes) ;; *) echo "ERROR: Unknown argument: $1" >&2; exit 2 ;; esac
   shift
 done
 
-command -v xdg-user-dirs-update >/dev/null || { echo "缺少 xdg-user-dirs-update。" >&2; exit 1; }
-command -v xdg-user-dir >/dev/null || { echo "缺少 xdg-user-dir。" >&2; exit 1; }
+command -v xdg-user-dirs-update >/dev/null || { echo "ERROR: xdg-user-dirs-update is not installed." >&2; exit 1; }
+command -v xdg-user-dir >/dev/null || { echo "ERROR: xdg-user-dir is not installed." >&2; exit 1; }
 
 declare -A names=(
   ["文档"]="Documents"
@@ -25,9 +26,9 @@ for old in "${!names[@]}"; do
   new="${names[$old]}"
   if [[ -d "$HOME/$old" && ! -e "$HOME/$new" ]]; then
     mv -- "$HOME/$old" "$HOME/$new"
-    echo "已重命名：$old -> $new"
+    echo "Renamed: $old -> $new"
   elif [[ -d "$HOME/$old" && -e "$HOME/$new" ]]; then
-    echo "中英文目录同时存在，保留两者：$HOME/$old、$HOME/$new"
+    echo "WARNING: Both localized and English directories exist; keeping both: $HOME/$old、$HOME/$new"
   fi
   mkdir -p "$HOME/$new"
 done
@@ -50,9 +51,9 @@ for pair in DOCUMENTS:Documents DOWNLOAD:Downloads PICTURES:Pictures MUSIC:Music
   actual="$(xdg-user-dir "$key")"
   expected="$HOME/$val"
   if [[ "$actual" != "$expected" || ! -d "$expected" ]]; then
-    echo "XDG 用户目录设置验证失败：$key -> $actual（预期 $expected）" >&2
+    echo "ERROR: XDG user directory verification failed: $key -> $actual（预期 $expected）" >&2
     exit 1
   fi
 done
 
-echo "XDG 用户目录已迁移/创建并验证为英文名称。"
+echo "XDG user directories were created/migrated and verified successfully."
