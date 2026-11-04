@@ -8,182 +8,192 @@ if (($# > 1)) || { (($# == 1)) && [[ "$1" != "-y" ]]; }; then
   exit 2
 fi
 
-remove_user_flatpaks=false
-remove_config=false
-remove_cache=false
-remove_appdata=false
-remove_user_dirs=false
-remove_personal=false
+yes_all=false
+[[ "${1:-}" == "-y" ]] && yes_all=true
 cleanup_errors=()
 
-if [[ "${1:-}" == "-y" ]]; then
-  # -y means accept every destructive cleanup category.
-  remove_user_flatpaks=true
-  remove_config=true
-  remove_cache=true
-  remove_appdata=true
-  remove_user_dirs=true
-  remove_personal=true
-else
-  ask() {
-    local label="$1" answer
-    printf '%s [Y/n] ' "$label"
-    IFS= read -r answer || return 1
-    case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
-  }
+ask() {
+  local label="$1" answer
+  if [[ "$yes_all" == true ]]; then
+    return 0
+  fi
+  printf '%s [Y/n] ' "$label"
+  IFS= read -r answer || answer=""
+  case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+}
 
-  echo "清理当前用户环境。项目镜像预装的系统级 Flatpak、RPM、系统镜像和其他用户始终保留。"
-  ask "删除用户配置（~/.config、shell 配置等）？" && remove_config=true
-  ask "删除缓存（~/.cache）？" && remove_cache=true
-  ask "删除用户应用数据（~/.local/share 中非 Flatpak 数据、~/.local/state、~/.var/app）？" && remove_appdata=true
-  ask "删除 XDG 用户目录（桌面、文档、下载、图片、音乐、视频等）？" && remove_user_dirs=true
-  ask "删除 HOME 中其他个人文件和隐藏目录（包括 SSH/GPG 密钥等）？" && remove_personal=true
-  ask "卸载用户级 Flatpak 应用及其数据？" && remove_user_flatpaks=true
-fi
+run_module_uninstall() {
+  local module="$1" script="/usr/libexec/fedora-niri/$1-setup"
+  local state_root="${XDG_STATE_HOME:-$HOME/.local/state}/fedora-niri/config-setup/$module"
+  if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
+    printf 'SKIPPED (no installation record): %s configuration\\n' "$module"
+    return 0
+  fi
+  if [[ ! -x "$script" ]]; then
+    printf 'ERROR: Uninstall script not found or not executable: %s\\n' "$script" >&2
+    cleanup_errors+=("$module configuration")
+    return 1
+  fi
+  if "$script" --uninstall --yes; then
+    printf 'Removed: %s configuration\\n' "$module"
+  else
+    printf 'ERROR: Failed to restore/remove %s configuration.\\n' "$module" >&2
+    cleanup_errors+=("$module configuration")
+    return 1
+  fi
+}
 
-# Missing cleanup targets are normal: skip them. Real removal failures are
-# collected so the remaining cleanup actions can still run.
 remove_paths() {
   local path
   for path in "$@"; do
     if [[ ! -e "$path" && ! -L "$path" ]]; then
-      printf 'SKIPPED (not found)：%s\n' "$path"
+      printf 'SKIPPED (not found): %s\\n' "$path"
       continue
     fi
-
     if rm -rf -- "$path"; then
-      printf 'Removed: %s\n' "$path"
+      printf 'Removed: %s\\n' "$path"
     else
-      printf 'ERROR: Failed to remove: %s\n' "$path" >&2
+      printf 'ERROR: Failed to remove: %s\\n' "$path" >&2
       cleanup_errors+=("$path")
     fi
   done
 }
 
-# User XDG directories are handled separately from other HOME contents.
-user_dirs=(
-  "$HOME/Desktop" "$HOME/Documents" "$HOME/Downloads"
-  "$HOME/Music" "$HOME/Pictures" "$HOME/Public"
-  "$HOME/Templates" "$HOME/Videos"
-)
-
-if [[ "$remove_user_flatpaks" == true ]]; then
-  flatpak_config="/usr/share/bluebuild/default-flatpaks/configuration.yml"
-
+remove_flatpaks() {
+  local flatpak_config="/usr/share/bluebuild/default-flatpaks/configuration.yml"
+  local flatpak_allowlist scope app_id app_data
+  local -a preserved_flatpaks=()
   if ! command -v flatpak >/dev/null 2>&1; then
     echo "WARNING: flatpak command not found; skipping Flatpak cleanup."
-  elif [[ ! -r "$flatpak_config" ]]; then
-    echo "ERROR: BlueBuild Flatpak configuration not found: $flatpak_config" >&2
-    echo "ERROR: Refusing to remove Flatpaks because the recipe allowlist cannot be verified." >&2
+    return 0
+  fi
+  if [[ ! -r "$flatpak_config" ]]; then
+    echo "ERROR: BlueBuild Flatpak configuration not found; refusing Flatpak removal." >&2
     cleanup_errors+=("Flatpak allowlist configuration")
-  elif ! command -v yq >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! command -v yq >/dev/null 2>&1; then
     echo "ERROR: yq command not found; cannot read the BlueBuild Flatpak allowlist." >&2
-    cleanup_errors+=("Flatpak allowlist parser (yq)")
-  else
-    if ! flatpak_allowlist="$(yq -r '.system.install[]?, .user.install[]?' "$flatpak_config")"; then
-      echo "ERROR: Failed to read BlueBuild Flatpak allowlist: $flatpak_config" >&2
-      cleanup_errors+=("Flatpak allowlist parsing")
+    cleanup_errors+=("Flatpak allowlist parser")
+    return 1
+  fi
+  if ! flatpak_allowlist="$(yq -r '.system.install[]?, .user.install[]?' "$flatpak_config")"; then
+    echo "ERROR: Failed to read the BlueBuild Flatpak allowlist." >&2
+    cleanup_errors+=("Flatpak allowlist parsing")
+    return 1
+  fi
+  mapfile -t preserved_flatpaks < <(printf '%s\\n' "$flatpak_allowlist" | sed 's#//.*$##' | sed '/^[[:space:]]*$/d')
+
+  is_preserved_flatpak() {
+    local candidate="$1" configured
+    candidate="${candidate%%//*}"
+    for configured in "${preserved_flatpaks[@]}"; do
+      configured="${configured%%//*}"
+      [[ "$candidate" == "$configured" ]] && return 0
+    done
+    return 1
+  }
+
+  for scope in system user; do
+    local installed_output
+    if [[ "$scope" == system ]]; then
+      if ! installed_output="$(flatpak list --system --app --columns=application)"; then
+        echo "ERROR: Failed to list system Flatpak applications." >&2
+        cleanup_errors+=("system Flatpak listing")
+        continue
+      fi
     else
-      mapfile -t preserved_flatpaks < <(
-        printf '%s\n' "$flatpak_allowlist" |
-          sed 's#//.*$##' |
-          sed '/^[[:space:]]*$/d'
-      )
-
-      is_preserved_flatpak() {
-        local candidate="$1" configured
-        candidate="${candidate%%//*}"
-        for configured in "${preserved_flatpaks[@]}"; do
-          configured="${configured%%//*}"
-          [[ "$candidate" == "$configured" ]] && return 0
-        done
-        return 1
-      }
-
-      remove_flatpaks_by_scope() {
-        local scope="$1" app_id
-        local -a installed_flatpaks=()
-        mapfile -t installed_flatpaks < <(flatpak list "--$scope" --app --columns=application)
-        for app_id in "${installed_flatpaks[@]}"; do
-          [[ -n "$app_id" ]] || continue
-          if is_preserved_flatpak "$app_id"; then
-            printf 'PRESERVED (declared in BlueBuild recipe): %s [%s]\n' "$app_id" "$scope"
-            continue
-          fi
-
-          printf 'Removing extra Flatpak: %s [%s]\n' "$app_id" "$scope"
-          if [[ "$scope" == "system" ]]; then
-            if sudo flatpak uninstall --system --delete-data --assumeyes "$app_id"; then
-              printf 'Removed: %s [system Flatpak]\n' "$app_id"
-            else
-              echo "ERROR: Failed to remove system Flatpak: $app_id" >&2
-              cleanup_errors+=("$app_id [system Flatpak]")
-            fi
-          else
-            if flatpak uninstall --user --delete-data --assumeyes "$app_id"; then
-              printf 'Removed: %s [user Flatpak]\n' "$app_id"
-            else
-              echo "ERROR: Failed to remove user Flatpak: $app_id" >&2
-              cleanup_errors+=("$app_id [user Flatpak]")
-            fi
-          fi
-        done
-      }
-
-      remove_flatpaks_by_scope system
-      remove_flatpaks_by_scope user
-
-      # Remove only stale per-app data for applications not declared in the recipe.
-      if [[ -d "$HOME/.var/app" ]]; then
-        for app_data in "$HOME/.var/app"/*; do
-          [[ -e "$app_data" || -L "$app_data" ]] || continue
-          app_id="${app_data##*/}"
-          if is_preserved_flatpak "$app_id"; then
-            printf 'PRESERVED app data (declared in BlueBuild recipe): %s\n' "$app_id"
-          else
-            remove_paths "$app_data"
-          fi
-        done
+      if ! installed_output="$(flatpak list --user --app --columns=application)"; then
+        echo "ERROR: Failed to list user Flatpak applications." >&2
+        cleanup_errors+=("user Flatpak listing")
+        continue
       fi
     fi
+    while IFS= read -r app_id; do
+      [[ -n "$app_id" ]] || continue
+      if is_preserved_flatpak "$app_id"; then
+        printf 'PRESERVED (declared in BlueBuild recipe): %s [%s]\\n' "$app_id" "$scope"
+        continue
+      fi
+      printf 'Removing extra Flatpak: %s [%s]\\n' "$app_id" "$scope"
+      if [[ "$scope" == system ]]; then
+        if sudo flatpak uninstall --system --delete-data --assumeyes "$app_id"; then
+          printf 'Removed: %s [system Flatpak]\\n' "$app_id"
+        else
+          printf 'ERROR: Failed to remove system Flatpak: %s\\n' "$app_id" >&2
+          cleanup_errors+=("$app_id [system Flatpak]")
+        fi
+      else
+        if flatpak uninstall --user --delete-data --assumeyes "$app_id"; then
+          printf 'Removed: %s [user Flatpak]\\n' "$app_id"
+        else
+          printf 'ERROR: Failed to remove user Flatpak: %s\\n' "$app_id" >&2
+          cleanup_errors+=("$app_id [user Flatpak]")
+        fi
+      fi
+    done <<< "$installed_output"
+  done
+
+  if [[ -d "$HOME/.var/app" ]]; then
+    for app_data in "$HOME/.var/app"/*; do
+      [[ -e "$app_data" || -L "$app_data" ]] || continue
+      app_id="${app_data##*/}"
+      if is_preserved_flatpak "$app_id"; then
+        printf 'PRESERVED app data (declared in BlueBuild recipe): %s\\n' "$app_id"
+      else
+        remove_paths "$app_data"
+      fi
+    done
   fi
+}
 
+echo "Fedora Niri Cleanup"
+echo "Choose which user-level changes and data to remove. Image-provided system packages and services are kept."
+echo
+
+# Restore module-managed files before deleting caches or application data.
+if ask "Restore and remove Kitty configuration?"; then
+  run_module_uninstall kitty || true
+fi
+if ask "Restore and remove Fcitx5 configuration and Rime Ice?"; then
+  run_module_uninstall fcitx || true
+fi
+if ask "Restore and remove Neovim configuration?"; then
+  run_module_uninstall nvim || true
+fi
+if ask "Restore and remove DMS, Niri, Quickshell and Greeter configuration?"; then
+  run_module_uninstall dms || true
 fi
 
-if [[ "$remove_config" == true ]]; then
-  remove_paths \
-    "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" \
-    "$HOME/.profile" "$HOME/.zshrc" "$HOME/.zprofile" \
-    "$HOME/.gitconfig" "$HOME/.vimrc"
+if ask "Remove extra system and user Flatpak applications not declared in the BlueBuild recipe?"; then
+  remove_flatpaks || true
 fi
 
-if [[ "$remove_cache" == true ]]; then
+if ask "Remove application data in ~/.local/share (excluding Flatpak data) and ~/.local/state (excluding Fedora Niri recovery records)?"; then
+  if [[ -d "$HOME/.local/share" ]]; then
+    find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} + ||
+      { echo "ERROR: Failed to clean ~/.local/share application data." >&2; cleanup_errors+=("~/.local/share application data"); }
+  fi
+  if [[ -d "$HOME/.local/state" ]]; then
+    find "$HOME/.local/state" -mindepth 1 -maxdepth 1 ! -name fedora-niri -exec rm -rf -- {} + ||
+      { echo "ERROR: Failed to clean ~/.local/state application data." >&2; cleanup_errors+=("~/.local/state application data"); }
+  fi
+fi
+
+if ask "Remove user cache (~/.cache)?"; then
   remove_paths "$HOME/.cache"
 fi
 
-if [[ "$remove_appdata" == true ]]; then
-  # Flatpak app data is handled per application above so recipe-provided apps keep their data.
-  if [[ -d "$HOME/.local/share" ]]; then
-    if ! find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +; then
-      echo "ERROR: Failed to clean application data in ~/.local/share." >&2
-      cleanup_errors+=("$HOME/.local/share 中的应用数据")
-    fi
-  else
-    echo "SKIPPED (not found)：$HOME/.local/share"
-  fi
-
-  remove_paths "$HOME/.local/state"
+if ask "Remove XDG user directories (Desktop, Documents, Downloads, Music, Pictures, Public, Templates and Videos)?"; then
+  remove_paths "$HOME/Desktop" "$HOME/Documents" "$HOME/Downloads" "$HOME/Music" "$HOME/Pictures" "$HOME/Public" "$HOME/Templates" "$HOME/Videos"
+  remove_paths "$HOME/.config/user-dirs.conf" "$HOME/.config/user-dirs.locale"
 fi
 
-if [[ "$remove_user_dirs" == true ]]; then
-  remove_paths "${user_dirs[@]}"
-fi
-
-if [[ "$remove_personal" == true ]]; then
+if ask "Remove remaining personal files and directories in HOME (including SSH/GPG keys and hidden files)?"; then
   for entry in "$HOME"/* "$HOME"/.[!.]* "$HOME"/..?*; do
     [[ -e "$entry" || -L "$entry" ]] || continue
     case "$entry" in
-      "$HOME/.config"|"$HOME/.cache"|"$HOME/.local"|"$HOME/.var"|"$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads"|"$HOME/Music"|"$HOME/Pictures"|"$HOME/Public"|"$HOME/Templates"|"$HOME/Videos") ;;
+      "$HOME/.cache"|"$HOME/.local"|"$HOME/.var"|"$HOME/.config"|"$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads"|"$HOME/Music"|"$HOME/Pictures"|"$HOME/Public"|"$HOME/Templates"|"$HOME/Videos") ;;
       *) remove_paths "$entry" ;;
     esac
   done
@@ -192,8 +202,11 @@ fi
 if (("${#cleanup_errors[@]}" > 0)); then
   echo
   echo "Cleanup finished with errors in the following targets:" >&2
-  printf '  - %s\n' "${cleanup_errors[@]}" >&2
+  printf '  - %s\\n' "${cleanup_errors[@]}" >&2
   exit 1
 fi
 
-echo "Cleanup completed successfully. Image-provided system Flatpak applications were preserved. Log out and back in to apply changes."
+echo
+echo "Cleanup completed successfully."
+echo "Image-provided RPM packages, system services and recipe-declared Flatpak applications were preserved."
+echo "Log out and back in to apply session changes."
