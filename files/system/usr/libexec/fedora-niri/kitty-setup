@@ -91,7 +91,7 @@ PY
 restore_kitty_fields() {
   local conf="$home/.config/kitty/kitty.conf"
   [[ -f "$kitty_state_file" ]] || {
-    echo "未找到 Kitty 字段变更记录，跳过字段恢复。" >&2
+    echo "WARNING: Kitty field change record not found; skipping field restoration." >&2
     return 0
   }
   python3 - "$conf" "$kitty_state_file" <<'PY'
@@ -151,7 +151,7 @@ after_uninstall() {
 }
 
 do_install() {
-  command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
+  command -v python3 >/dev/null || { echo "ERROR: python3 is required but was not found." >&2; return 1; }
   set_kitty_fields
 }
 
