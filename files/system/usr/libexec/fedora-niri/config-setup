@@ -81,11 +81,17 @@ config_setup_main() {
       declare -F after_already_installed >/dev/null && after_already_installed
       echo "$module is already installed."; return 0
     fi
-    if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-      echo "ERROR: Previous $module operation is incomplete. Inspect $state_root before retrying." >&2
-      return 1
-    fi
     [[ -f "$state_root/installed" ]] && was_installed=true
+    if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
+      echo "Recovering the previous incomplete $module operation before retrying..."
+      if [[ "$was_installed" == true && -f "$transaction/manifest" ]]; then
+        restore_from "$transaction"
+      elif [[ "$was_installed" != true && -f "$manifest" ]]; then
+        restore
+      fi
+      rm -rf "$transaction"
+      rm -f "$state_root/failed" "$state_root/installing"
+    fi
     mkdir -p "$state_root"; touch "$state_root/installing"; in_install=true
     trap rollback_install EXIT INT TERM HUP
     if [[ "$was_installed" == true ]]; then snapshot_to "$transaction"; else snapshot_to "$state_root"; fi
