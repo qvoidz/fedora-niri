@@ -39,6 +39,12 @@ jobs:
       - name: Test configuration setup transactions
         run: bash tests/test-config-setup.sh
 
+      - name: Test boot-time session configuration
+        run: |
+          set -euo pipefail
+          bash tests/test-session-locale.sh
+          python3 -c 'import tomllib; tomllib.load(open("files/system/etc/greetd/config.toml", "rb"))'
+
       - name: Validate shell script syntax
         run: |
           set -euo pipefail
