@@ -2,7 +2,7 @@
 
 ## 脚本布局
 
-功能脚本集中在 `/usr/libexec/fedora-niri/`，每个 Just 命令对应一个独立脚本；全局命令入口统一放在 `/usr/share/fedora-niri/Justfile`。`config-setup` 只提供通用的备份、恢复、安装状态、交互和失败回滚机制；字体、Kitty、DMS、Fcitx5 和 Neovim 的具体操作分别实现在各自的 `*-setup` 脚本中。`cleanup` 和 `user-dirs` 是独立脚本，不依赖配置管理核心。
+功能脚本集中在 `/usr/libexec/fedora-niri/`，每个 Just 命令对应一个独立脚本；全局命令入口统一放在 `/usr/share/fedora-niri/Justfile`。`config-setup` 只提供通用的备份、恢复、配置状态、交互和失败回滚机制；Kitty、DMS（包含默认界面字体）、Fcitx5 和 Neovim 的具体操作分别实现在各自的 `*-setup` 脚本中。`cleanup` 和 `user-dirs` 是独立脚本，不依赖配置管理核心。
 
 ## 普通 Just 命令
 
@@ -13,7 +13,6 @@
 | `just dms-setup` | Install/Uninstall/Cancel；使用 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y` 配置 Dux 桌面环境（不负责安装系统 RPM），初始化 DMS Greeter，并设置 DMS 默认界面字体和 Nautilus 的 Kitty 右键终端 |
 | `just kitty-setup` | 管理 Kitty 配置 |
 | `just fcitx-setup` | 管理 Fcitx5、Rime 和雾凇拼音用户配置；每次运行都会 fast-forward 更新已有的雾凇拼音 Git 仓库 |
-| `just fonts-setup` | 设置 DMS 默认界面字体（`fontFamily`），不修改 Kitty 字体 |
 | `just nvim-setup` | 管理 LazyVim Starter |
 | `just user-dirs` | 固定英文 XDG 用户目录 |
 | `just cleanup` | 逐项选择要清理的用户数据 |
