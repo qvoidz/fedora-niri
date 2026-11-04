@@ -131,6 +131,7 @@ modules:
   - type: script
     scripts:
       - install-clash-verge-rev.sh
+      - set-sudoers-permissions.sh
 
   - type: systemd
     system:
