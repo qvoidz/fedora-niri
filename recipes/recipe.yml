@@ -108,6 +108,12 @@ modules:
         - swtpm
         - dnsmasq
 
+    remove:
+      packages:
+        - firefox
+        - htop
+        - nvtop
+
   - type: files
     files:
       - source: system
