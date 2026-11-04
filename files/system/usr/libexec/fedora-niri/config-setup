@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+source /usr/libexec/fedora-niri/logging
+
 config_setup_main() {
   module="${1:?missing module}"; shift
   home="${HOME:?HOME is not set}"
+  setup_logging "$module-setup"
   yes=false; uninstall_only=false; refresh=false
   while (($#)); do
     case "$1" in -y|--yes) yes=true ;; --uninstall) uninstall_only=true ;; --refresh) refresh=true ;; *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;; esac
