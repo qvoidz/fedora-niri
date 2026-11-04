@@ -16,7 +16,6 @@ modules:
         - monkeygold/nautilus-open-any-terminal
       files:
         - microsoft-edge.repo
-        - vscode.repo
     install:
       packages:
         # ── Desktop session ─────────────────────────────────────────────
