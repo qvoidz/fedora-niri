@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+source /usr/libexec/fedora-niri/logging
+setup_logging install-clash-verge-rev
 trap 'status=$?; printf "ERROR: install-clash-verge-rev failed at line %s (exit code %s).\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
 repo="clash-verge-rev/clash-verge-rev"
