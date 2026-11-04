@@ -80,16 +80,16 @@ if [[ "$remove_user_flatpaks" == true ]]; then
     echo "ERROR: yq command not found; cannot read the BlueBuild Flatpak allowlist." >&2
     cleanup_errors+=("Flatpak allowlist parser (yq)")
   else
-    mapfile -t preserved_flatpaks < <(
-      yq -r '.system.install[]?, .user.install[]?' "$flatpak_config" |
-        sed 's#//.*$##' |
-        sed '/^[[:space:]]*$/d'
-    )
-
-    if (("${PIPESTATUS[0]:-0}" != 0)); then
+    if ! flatpak_allowlist="$(yq -r '.system.install[]?, .user.install[]?' "$flatpak_config")"; then
       echo "ERROR: Failed to read BlueBuild Flatpak allowlist: $flatpak_config" >&2
       cleanup_errors+=("Flatpak allowlist parsing")
     else
+      mapfile -t preserved_flatpaks < <(
+        printf '%s\\n' "$flatpak_allowlist" |
+          sed 's#//.*$##' |
+          sed '/^[[:space:]]*$/d'
+      )
+
       is_preserved_flatpak() {
         local candidate="$1" configured
         candidate="${candidate%%//*}"
@@ -162,8 +162,7 @@ if [[ "$remove_cache" == true ]]; then
 fi
 
 if [[ "$remove_appdata" == true ]]; then
-  remove_paths "$HOME/.var/app"
-
+  # Flatpak app data is handled per application above so recipe-provided apps keep their data.
   if [[ -d "$HOME/.local/share" ]]; then
     if ! find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} +; then
       echo "ERROR: Failed to clean application data in ~/.local/share." >&2
