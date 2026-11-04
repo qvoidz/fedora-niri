@@ -10,16 +10,16 @@
 
 | 命令 | 说明 |
 | --- | --- |
-| `just dms-setup` | Install/Uninstall/Cancel；安装时调用 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y`，启用全部 Dux 可选组件但明确排除 Dux Files |
+| `just dms-setup` | Install/Uninstall/Cancel；使用 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y` 配置 Dux 桌面环境（不负责安装系统 RPM），初始化 DMS Greeter，并设置 DMS 默认界面字体和 Nautilus 的 Kitty 右键终端 |
 | `just kitty-setup` | 管理 Kitty 配置 |
-| `just fcitx-setup` | 管理 Fcitx5、Rime 和雾凇拼音用户配置 |
+| `just fcitx-setup` | 管理 Fcitx5、Rime 和雾凇拼音用户配置；每次运行都会 fast-forward 更新已有的雾凇拼音 Git 仓库 |
 | `just fonts-setup` | 设置 DMS 默认界面字体（`fontFamily`），不修改 Kitty 字体 |
 | `just nvim-setup` | 管理 LazyVim Starter |
 | `just user-dirs` | 固定英文 XDG 用户目录 |
 | `just cleanup` | 逐项选择要清理的用户数据 |
 | `just cleanup -- -y` | 自动确认并删除所有清理类别 |
 
-配置安装会先备份模块管理的目标；卸载时删除目标当前内容并恢复备份。`fonts-setup` 仅修改 `~/.config/DankMaterialShell/settings.json` 中的 `fontFamily`，不会修改 `monoFontFamily` 或 Kitty 配置；卸载时恢复原始 DMS 设置文件。DMS 在启动 duxinstall 前备份 Niri、Quickshell 和 DMS 配置目录。请注意，卸载会恢复这些目录的安装前快照，安装后在这些目录里新增的个人修改也会被覆盖。
+配置安装会先备份模块管理的目标；卸载时删除目标当前内容并恢复备份。DMS 在启动 duxinstall 前备份 Niri、Quickshell、Kitty 和 DMS 配置目录。DMS Greeter 的系统级配置不在用户目录快照中：配置失败回滚和卸载时会调用 `dms-greeter uninstall` 撤销 Greeter 配置。请注意，卸载会恢复这些目录的安装前快照，安装后在这些目录里新增的个人修改也会被覆盖。
 
 ## cleanup 清理说明
 
@@ -47,7 +47,7 @@ systemctl --user status dms
 journalctl --user -u dms -b
 ```
 
-DMS 配置通过 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y` 安装；这里不使用在当前不可变系统上会失败的 `dms setup`。`--all-features` 会启用 Dux Greeter、Dux Search、Dux Calendar 和 Dux Files，因此必须同时使用 `--exclude-deps dux-files`，以保留 Nautilus 作为文件管理器。
+DMS/Niri/Kitty 的用户级桌面配置通过 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y` 部署；在 Fedora Atomic / bootc 上，`duxinstall` 不负责安装系统 RPM，只检查镜像中已有的组件并部署用户配置。`--all-features` 会启用 Dux Greeter、Dux Search 和 Dux Calendar 等可选组件，但必须通过 `--exclude-deps dux-files` 排除 Dux Files，以保留 Nautilus 作为文件管理器。
 
 ## DMS 可选功能
 
@@ -63,7 +63,7 @@ DMS 配置通过 `duxinstall -c niri -t kitty --all-features --exclude-deps dux-
 
 ## DMS Greeter
 
-镜像启用 greetd，配置文件为 `/etc/greetd/config.toml`。检查：
+镜像包含 `greetd` 和 `dux-greeter` 软件包。首次部署并重启进入新镜像后，运行 `just dms-setup`，脚本会以普通用户身份执行 `dms-greeter install --yes`，由 DMS Greeter 自己生成 `/etc/greetd/config.toml`、配置 PAM、权限和服务。卸载 DMS 配置或安装失败时，脚本调用 `dms-greeter uninstall` 撤销这些系统级修改。检查：
 
 ```bash
 systemctl status greetd
@@ -73,7 +73,7 @@ dms-greeter sync
 
 ## Fcitx5 / Rime
 
-Fcitx5 软件包已预装，但用户级 autostart、会话环境变量和雾凇拼音配置需运行 `just fcitx-setup`。环境变量完整生效需要重新登录图形会话。GTK 原生 Wayland 应用不强制设置 `GTK_IM_MODULE`。
+Fcitx5 软件包已预装，但用户级 autostart、会话环境变量和雾凇拼音配置需运行 `just fcitx-setup`。每次运行都会更新已有的雾凇拼音 Git 仓库（仅允许 fast-forward），不存在时则克隆最新仓库。环境变量完整生效需要重新登录图形会话。GTK 原生 Wayland 应用不强制设置 `GTK_IM_MODULE`。
 
 ## QEMU / KVM
 
