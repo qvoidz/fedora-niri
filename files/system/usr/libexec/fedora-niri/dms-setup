@@ -17,7 +17,22 @@ after_uninstall() {
 
 do_install() {
   command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
-  duxinstall -c niri -t kitty --replace-configs niri,kitty -y
+
+  # Install DMS with every optional Dux Installer feature, while retaining Niri + Kitty.
+  duxinstall -c niri -t kitty --all-features --replace-configs niri,kitty -y
+
+  # Fedora Atomic/bootc: duxinstall layers the greeter package but does not configure it.
+  command -v dms-greeter >/dev/null || { echo "未找到 dms-greeter；请确认 dux-greeter 已加入系统镜像。" >&2; return 1; }
+  dms-greeter install --yes
+
+  # Use GNOME Files (Nautilus) with Kitty in its right-click terminal menu.
+  local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
+  if ! gsettings list-schemas | grep -Fxq "$schema"; then
+    echo "未找到 Nautilus Open Any Terminal 的 GSettings schema。" >&2
+    return 1
+  fi
+  gsettings set "$schema" terminal kitty
+  nautilus -q 2>/dev/null || true
 }
 
 config_setup_main dms "$@"
