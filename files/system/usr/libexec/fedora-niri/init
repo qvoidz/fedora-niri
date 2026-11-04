@@ -67,6 +67,7 @@ run_setup dms-setup
 run_setup niri-setup
 run_setup kitty-setup
 run_setup nvim-setup
+run_setup fcitx-setup
 
 printf '%s\n' "$deployment" > "$marker.tmp"
 mv -f "$marker.tmp" "$marker"
