@@ -109,9 +109,11 @@ HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --yes
 
 profile="$fcitx_home/.config/fcitx5/profile"
-grep -Fqx 'DefaultIM=rime' "$profile"
+grep -Fqx 'DefaultIM=keyboard-us' "$profile"
 grep -Fqx 'Default Layout=us' "$profile"
-keyboard_line="$(grep -n -m1 '^Name=keyboard-us
+rime_line="$(grep -n -m1 '^Name=rime$' "$profile" | cut -d: -f1)"
+keyboard_line="$(grep -n -m1 '^Name=keyboard-us$' "$profile" | cut -d: -f1)"
+(( rime_line < keyboard_line ))
 [[ "$(cat "$FCITX_CURRENT")" == "rime" ]]
 grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
 grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
