@@ -1,3 +1,23 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-exec bash /usr/libexec/fedora-niri/config-setup dms "$@"
+source /usr/libexec/fedora-niri/config-setup
+
+paths_for() {
+  # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
+  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+}
+
+before_uninstall() {
+  systemctl --user disable --now dms.service 2>/dev/null || true
+}
+
+after_uninstall() {
+  systemctl --user daemon-reload 2>/dev/null || true
+}
+
+do_install() {
+  command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
+  duxinstall -c niri -t kitty -y
+}
+
+config_setup_main dms "$@"
