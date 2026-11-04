@@ -11,8 +11,10 @@ restore_greetd_config() {
   local original="$state_root/greetd-config.toml.original"
   if [[ -f "$original" ]]; then
     sudo install -m 0644 "$original" /etc/greetd/config.toml
-    rm -f "$original"
+  elif [[ -f "$state_root/greetd-config-was-absent" ]]; then
+    sudo rm -f /etc/greetd/config.toml
   fi
+  rm -f "$original" "$state_root/greetd-config-was-present" "$state_root/greetd-config-was-absent"
 }
 
 before_uninstall() {
@@ -49,8 +51,6 @@ configure_greetd_locale() {
     echo "greetd Chinese locale is already configured."
     return 0
   fi
-  [[ -f "$state_root/greetd-config.toml.original" ]] ||
-    sudo cp -a "$config" "$state_root/greetd-config.toml.original"
   sudo python3 - "$config" <<'PY'
 import os, re, stat, sys, tempfile
 path = sys.argv[1]
@@ -96,6 +96,13 @@ do_install() {
     echo "ERROR: dms-greeter is missing; ensure dux-greeter is installed in the image." >&2
     return 1
   }
+  local greetd_config=/etc/greetd/config.toml
+  if [[ -e "$greetd_config" ]]; then
+    sudo cp -a "$greetd_config" "$state_root/greetd-config.toml.original"
+    touch "$state_root/greetd-config-was-present"
+  else
+    touch "$state_root/greetd-config-was-absent"
+  fi
   touch "$state_root/greeter-installing"
   dms-greeter install --yes
   touch "$state_root/greeter-configured"
