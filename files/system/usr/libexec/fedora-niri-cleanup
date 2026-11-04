@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-: "\${HOME:?HOME is not set}"
+: "${HOME:?HOME is not set}"
 
 if (($# > 1)) || { (($# == 1)) && [[ "$1" != "-y" ]]; }; then
   echo "用法：just cleanup [-y]" >&2
@@ -14,7 +14,7 @@ remove_appdata=false
 remove_user_dirs=false
 remove_personal=false
 
-if [[ "\${1:-}" == "-y" ]]; then
+if [[ "${1:-}" == "-y" ]]; then
   # -y means accept every destructive cleanup category.
   remove_user_flatpaks=true
   remove_config=true
@@ -27,7 +27,7 @@ else
     local label="$1" answer
     printf '%s [y/N] ' "$label"
     IFS= read -r answer || answer=""
-    case "\${answer,,}" in y|yes) return 0 ;; *) return 1 ;; esac
+    case "${answer,,}" in y|yes) return 0 ;; *) return 1 ;; esac
   }
 
   echo "清理当前用户环境。项目镜像预装的系统级 Flatpak、RPM、系统镜像和其他用户始终保留。"
@@ -68,16 +68,13 @@ if [[ "$remove_appdata" == true ]]; then
   rm -rf -- "$HOME/.local/state"
 fi
 if [[ "$remove_user_dirs" == true ]]; then
-  rm -rf -- "\${user_dirs[@]}"
+  rm -rf -- "${user_dirs[@]}"
 fi
 if [[ "$remove_personal" == true ]]; then
   for entry in "$HOME"/* "$HOME"/.[!.]* "$HOME"/..?*; do
     [[ -e "$entry" || -L "$entry" ]] || continue
     case "$entry" in
-      "$HOME/.config"|"$HOME/.cache"|"$HOME/.local"|"$HOME/.var"|
-      "$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads"|
-      "$HOME/Music"|"$HOME/Pictures"|"$HOME/Public"|
-      "$HOME/Templates"|"$HOME/Videos") ;;
+      "$HOME/.config"|"$HOME/.cache"|"$HOME/.local"|"$HOME/.var"|"$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads"|"$HOME/Music"|"$HOME/Pictures"|"$HOME/Public"|"$HOME/Templates"|"$HOME/Videos") ;;
       *) rm -rf -- "$entry" ;;
     esac
   done
