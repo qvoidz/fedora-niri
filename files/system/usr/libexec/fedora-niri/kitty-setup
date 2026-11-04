@@ -39,7 +39,33 @@ try:
 except FileNotFoundError:
     lines = []
 
-state = {"config_existed": existed, "fields": {}}
+if os.path.isfile(state_path):
+    # Keep the pre-install values across upgrades; never replace them with
+    # values written by an earlier setup/refresh.
+    with open(state_path, encoding="utf-8") as stream:
+        state = json.load(stream)
+    if not isinstance(state, dict) or not isinstance(state.get("fields"), dict):
+        raise SystemExit("ERROR: Kitty rollback record is invalid; refusing to overwrite it.")
+else:
+    state = {"config_existed": existed, "fields": {}}
+    for key, value in settings.items():
+        matches = [line.rstrip("\\n") for line in lines
+                   if (m := pattern.match(line)) and m.group(1) == key
+                   and not line.lstrip().startswith("#")]
+        state["fields"][key] = {"present": bool(matches), "lines": matches}
+
+    # Persist the original rollback data before touching kitty.conf.
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    fd, temp_state = tempfile.mkstemp(prefix=".kitty-fields.", dir=os.path.dirname(state_path))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(state, stream, ensure_ascii=False, indent=2)
+            stream.write("\\n")
+        os.replace(temp_state, state_path)
+    except BaseException:
+        try: os.unlink(temp_state)
+        except FileNotFoundError: pass
+        raise
 for key, value in settings.items():
     matches = [line.rstrip("\n") for line in lines
                if (m := pattern.match(line)) and m.group(1) == key
