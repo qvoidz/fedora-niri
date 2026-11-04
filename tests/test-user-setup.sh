@@ -105,14 +105,12 @@ DefaultIM=keyboard-us
 PROFILE
 fcitx_test="$test_root/fcitx-setup"
 sed "s|^source /usr/libexec/fedora-niri/config-setup$|source \"$config_setup\"|" "$fcitx_source" > "$fcitx_test"
-HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
+HOME="$fcitx_home" XDG_CONFIG_HOME="$fcitx_home/.config" XDG_DATA_HOME="$fcitx_home/.local/share" \
+  XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --yes
 
 profile="$fcitx_home/.config/fcitx5/profile"
 echo "Checking generated Fcitx profile defaults and Rime ordering..."
-echo "--- generated profile: $profile ---"
-cat "$profile"
-set -x
 grep -Fqx 'DefaultIM=keyboard-us' "$profile"
 grep -Fqx 'Default Layout=us' "$profile"
 rime_line="$(grep -n -m1 '^Name=rime$' "$profile" | cut -d: -f1)"
@@ -130,7 +128,8 @@ grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
 grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
 
 echo "Checking Fcitx uninstall and original configuration restoration..."
-HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
+HOME="$fcitx_home" XDG_CONFIG_HOME="$fcitx_home/.config" XDG_DATA_HOME="$fcitx_home/.local/share" \
+  XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
 grep -Fqx "AltTriggerKeys=Shift_L" "$fcitx_home/.config/fcitx5/config"
 grep -Fqx "TriggerKeys=Control+space" "$fcitx_home/.config/fcitx5/config"
