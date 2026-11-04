@@ -27,13 +27,13 @@ ask() {
 }
 
 ask_state_cleanup() {
-  local answer
+  local answer state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
   [[ "$clean_state" == true ]] && return 0
   [[ "$yes_all" == true ]] && {
     echo "PRESERVED: ~/.local/state (use --clean-state to remove user state data)."
     return 1
   }
-  printf 'Remove user application state in ~/.local/state (Fedora Niri recovery records will be preserved)? [y/N] '
+  printf 'Remove ALL user state data in %s, including Fedora Niri recovery records and upgrade backups? [y/N] ' "$state_home"
   IFS= read -r answer || answer=""
   case "${answer,,}" in y|yes) return 0 ;; *) return 1 ;; esac
 }
@@ -207,10 +207,8 @@ if ask "Remove application data in ~/.local/share (excluding Flatpak data)?"; th
 fi
 
 if ask_state_cleanup; then
-  if [[ -d "$HOME/.local/state" ]]; then
-    find "$HOME/.local/state" -mindepth 1 -maxdepth 1 ! -name fedora-niri -exec rm -rf -- {} + ||
-      { echo "ERROR: Failed to clean ~/.local/state application data." >&2; cleanup_errors+=("~/.local/state application data"); }
-  fi
+  state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+  remove_paths "$state_home"
 fi
 
 if ask "Remove remaining user configuration files under ~/.config?"; then
