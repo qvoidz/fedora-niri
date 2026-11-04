@@ -23,8 +23,8 @@ config_setup_main() {
 
   resolve_managed_path() {
     case "$1" in
-      /*) printf '%s\\n' "$1" ;;
-      *) printf '%s/%s\\n' "$home" "$1" ;;
+      /*) printf '%s\n' "$1" ;;
+      *) printf '%s/%s\n' "$home" "$1" ;;
     esac
   }
   snapshot_to() {
