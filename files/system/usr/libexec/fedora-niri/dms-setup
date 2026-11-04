@@ -62,7 +62,7 @@ after_uninstall() {
 
 rollback_install_extra() {
   local result=0
-  if [[ -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ]]; then
+  if [[ "$was_installed" != true && ( -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ) ]]; then
     dms-greeter uninstall --yes || result=1
   fi
   restore_greetd_operation || result=1
