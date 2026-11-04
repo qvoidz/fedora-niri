@@ -1,3 +1,68 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-exec bash /usr/libexec/fedora-niri/config-setup fcitx "$@"
+source /usr/libexec/fedora-niri/config-setup
+
+paths_for() {
+  printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.config/fcitx5/profile' '.local/share/fcitx5/rime'
+}
+
+before_uninstall() {
+  fcitx5-remote -e 2>/dev/null || true
+}
+
+do_install() {
+  command -v git >/dev/null || { echo "需要 git。" >&2; return 1; }
+  command -v fcitx5 >/dev/null || { echo "未找到 fcitx5。" >&2; return 1; }
+  command -v fcitx5-remote >/dev/null || { echo "未找到 fcitx5-remote。" >&2; return 1; }
+  mkdir -p "$home/.config/environment.d" "$home/.config/autostart" "$home/.config/fcitx5" "$home/.local/share/fcitx5"
+  cat > "$home/.config/environment.d/90-fcitx5.conf" <<'EOF'
+XMODIFIERS=@im=fcitx
+QT_IM_MODULE=fcitx
+SDL_IM_MODULE=fcitx
+EOF
+  cat > "$home/.config/autostart/org.fcitx.Fcitx5.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Exec=/usr/bin/fcitx5 -d --replace
+Icon=fcitx
+Terminal=false
+Categories=System;
+EOF
+  if [[ ! -d "$home/.local/share/fcitx5/rime" ]]; then
+    local tmp
+    tmp="$(mktemp -d "$home/.local/share/fcitx5/.rime.XXXXXX")"
+    if ! git clone --depth 1 https://github.com/iDvel/rime-ice.git "$tmp/rime"; then
+      rm -rf "$tmp"
+      return 1
+    fi
+    mv "$tmp/rime" "$home/.local/share/fcitx5/rime"
+    rmdir "$tmp"
+  fi
+  cat > "$home/.config/fcitx5/profile" <<'EOF'
+[Groups/0]
+Name=Default
+DefaultIM=keyboard-us
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=rime
+
+[GroupOrder]
+0=Default
+
+[Groups]
+0=Default
+EOF
+  if pgrep -u "$(id -u)" -x fcitx5 >/dev/null 2>&1; then
+    fcitx5-remote -r >/dev/null 2>&1 || true
+  else
+    nohup fcitx5 -d --replace >/dev/null 2>&1 </dev/null &
+  fi
+  echo "已部署 Rime 并将 rime 加入 Fcitx5 输入法组；会话环境变量需重新登录后生效。"
+}
+
+config_setup_main fcitx "$@"
