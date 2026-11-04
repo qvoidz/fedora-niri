@@ -76,7 +76,7 @@ remove_paths() {
 }
 
 remove_flatpaks() {
-  local flatpak_config="" flatpak_allowlist scope app_id app_data
+  local flatpak_config="" flatpak_allowlist scope app_id
   local -a preserved_flatpaks=()
   if ! command -v flatpak >/dev/null 2>&1; then
     echo "WARNING: flatpak command not found; skipping Flatpak cleanup."
@@ -161,17 +161,6 @@ remove_flatpaks() {
     done <<< "$installed_output"
   done
 
-  if [[ -d "$HOME/.var/app" ]]; then
-    for app_data in "$HOME/.var/app"/*; do
-      [[ -e "$app_data" || -L "$app_data" ]] || continue
-      app_id="${app_data##*/}"
-      if is_preserved_flatpak "$app_id"; then
-        printf 'PRESERVED app data (declared in BlueBuild recipe): %s\\n' "$app_id"
-      else
-        remove_paths "$app_data"
-      fi
-    done
-  fi
 }
 
 echo "Fedora Niri Cleanup"
@@ -199,16 +188,31 @@ if ask "Remove extra system and user Flatpak applications not declared in the Bl
   remove_flatpaks || true
 fi
 
-if ask "Remove application data in ~/.local/share (excluding Flatpak data)?"; then
-  if [[ -d "$HOME/.local/share" ]]; then
-    find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} + ||
-      { echo "ERROR: Failed to clean ~/.local/share application data." >&2; cleanup_errors+=("~/.local/share application data"); }
-  fi
-fi
-
+# Handle state separately so it can be preserved while the rest of ~/.local is removed.
 if ask_state_cleanup; then
   state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
   remove_paths "$state_home"
+fi
+
+if ask "Remove all user data in ~/.local (excluding the state directory when preserved)?"; then
+  state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+  if [[ -d "$HOME/.local" ]]; then
+    for entry in "$HOME/.local"/* "$HOME/.local"/.[!.]* "$HOME/.local"/..?*; do
+      [[ -e "$entry" || -L "$entry" ]] || continue
+      case "$state_home" in
+        "$entry"|"$entry"/*)
+          printf 'PRESERVED (user state directory): %s\\n' "$entry"
+          ;;
+        *)
+          remove_paths "$entry"
+          ;;
+      esac
+    done
+  fi
+fi
+
+if ask "Remove all user data in ~/.var, including all Flatpak application data?"; then
+  remove_paths "$HOME/.var"
 fi
 
 if ask "Remove remaining user configuration files under ~/.config?"; then
