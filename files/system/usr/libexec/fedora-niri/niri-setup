@@ -4,7 +4,7 @@ source /usr/libexec/fedora-niri/config-setup
 paths_for() { printf '%s\n' '.config/niri' '.config/quickshell'; }
 do_install() {
   command -v duxinstall >/dev/null || { echo "ERROR: duxinstall was not found." >&2; return 1; }
-  duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri -y
+  duxinstall -c niri -t kitty --all-features --replace-configs niri -y
   python3 - "$home/.config/niri/config.kdl" "$home/.config/niri/dms/input.kdl" <<'PY'
 import os,re,stat,sys,tempfile
 def update(path,name,transform):
