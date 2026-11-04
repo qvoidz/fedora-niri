@@ -18,7 +18,7 @@ do_install() {
   (("${#choices[@]}" > 0)) || { echo "没有检测到可用字体。" >&2; return 1; }
   local selected=""
   if [[ "$yes" == true ]]; then
-    for candidate in "Inter" "Inter Variable" "Noto Sans" "Adwaita Sans"; do
+    for candidate in "Noto Sans" "Noto Sans CJK SC" "Adwaita Sans" "Inter" "Inter Variable"; do
       for available in "${choices[@]}"; do
         [[ "$available" == "$candidate" ]] && { selected="$available"; break 2; }
       done
