@@ -11,18 +11,41 @@ curl --fail --location --retry 3 \
   --header "Accept: application/vnd.github+json" \
   --output "${release_json}" "${api_url}"
 
-rpm_asset="$(jq -er '
-  [
-    .assets[]
-    | select(.name | test("^Clash[ .]Verge-.*-1\\.x86_64\\.rpm$"))
-    | select(.state == "uploaded")
-  ]
-  | if length == 1 then .[0] else error("Expected exactly one x86_64 RPM asset") end
-' "${release_json}")"
+mapfile -t asset_info < <(python3 - "${release_json}" <<'PY'
+import json
+import re
+import sys
 
-rpm_name="$(jq -er '.name' <<<"${rpm_asset}")"
-rpm_url="$(jq -er '.browser_download_url' <<<"${rpm_asset}")"
-expected_sha256="$(jq -er '.digest | select(startswith("sha256:")) | sub("^sha256:"; "")' <<<"${rpm_asset}")"
+with open(sys.argv[1], encoding="utf-8") as stream:
+    release = json.load(stream)
+
+assets = [
+    asset for asset in release.get("assets", [])
+    if re.fullmatch(r"Clash[ .]Verge-.*-1\.x86_64\.rpm", asset.get("name", ""))
+    and asset.get("state") == "uploaded"
+]
+if len(assets) != 1:
+    raise SystemExit("Expected exactly one uploaded x86_64 RPM asset")
+
+asset = assets[0]
+digest = asset.get("digest", "")
+if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    raise SystemExit(f"Release asset has no valid SHA-256 digest: {digest!r}")
+
+print(asset["name"])
+print(asset["browser_download_url"])
+print(digest.removeprefix("sha256:"))
+PY
+)
+
+if (("${#asset_info[@]}" != 3)); then
+  echo "无法解析 Clash Verge Rev Release 资源。" >&2
+  exit 1
+fi
+
+rpm_name="${asset_info[0]}"
+rpm_url="${asset_info[1]}"
+expected_sha256="${asset_info[2]}"
 rpm_path="${tmp_dir}/${rpm_name}"
 
 curl --fail --location --retry 3 --output "${rpm_path}" "${rpm_url}"
