@@ -69,6 +69,15 @@ run_setup kitty-setup
 run_setup fcitx-setup
 run_setup nvim-setup
 
+# Register dfiles as the FileChooser portal backend so other apps' open/save
+# dialogs use it. dux-files changes nothing until this is enabled; --restart
+# reloads xdg-desktop-portal non-interactively (required for it to take effect).
+if command -v dfiles >/dev/null 2>&1; then
+  echo "Registering dfiles as the portal file chooser..."
+  dfiles portal install --restart \
+    || echo "WARNING: dfiles portal registration failed; open/save dialogs keep the previous backend."
+fi
+
 printf '%s\n' "$deployment" > "$marker.tmp"
 mv -f "$marker.tmp" "$marker"
 echo "Fedora Niri initialization completed successfully for deployment $deployment."
