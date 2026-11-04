@@ -164,7 +164,7 @@ update_rime_config() {
     echo "ERROR: Rime directory exists but is not a Git repository; refusing to overwrite: $rime_dir" >&2
     return 1
   else
-    rime_staging="$(mktemp -d "$data_home/fcitx5/.rime.XXXXXX")
+    rime_staging="$(mktemp -d "$data_home/fcitx5/.rime.XXXXXX")"
     if git clone --depth 1 https://github.com/iDvel/rime-ice.git "$rime_staging/rime"; then
       :
     else
