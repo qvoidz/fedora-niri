@@ -131,6 +131,27 @@ grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
 [[ ! -e "$fcitx_home/.local/share/fcitx5/rime" ]]
 [[ ! -e "$fcitx_home/.config/environment.d/90-fcitx5.conf" ]]
 
+# Custom XDG roots must be used and must participate in backup/restore.
+xdg_home="$test_root/xdg-home"
+xdg_config="$xdg_home/config"
+xdg_data="$xdg_home/data"
+mkdir -p "$xdg_home"
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --yes
+[[ -f "$xdg_config/fcitx5/profile" ]]
+[[ -f "$xdg_config/environment.d/90-fcitx5.conf" ]]
+[[ -f "$xdg_data/fcitx5/rime/.git/HEAD" ]]
+[[ ! -e "$xdg_home/.config/fcitx5/profile" ]]
+HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
+  XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
+  FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
+  bash "$fcitx_test" --uninstall --yes
+[[ ! -e "$xdg_config/fcitx5/profile" ]]
+[[ ! -e "$xdg_config/environment.d/90-fcitx5.conf" ]]
+[[ ! -e "$xdg_data/fcitx5/rime" ]]
+
 # Fcitx remains an explicit Just action; it must not be wired into login init.
 ! grep -Fq 'run_setup fcitx-setup' "$init_script"
 grep -Fq 'run_setup nvim-setup' "$init_script"
