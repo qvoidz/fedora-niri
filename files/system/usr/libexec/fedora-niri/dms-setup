@@ -248,9 +248,12 @@ PY
   # Optional integration: configure Nautilus Open Any Terminal when its schema is available.
   # This must not fail the DMS setup; the core DMS/Niri configuration is independent of it.
   local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
+  local available_schemas
   if ! command -v gsettings >/dev/null 2>&1; then
     echo "WARNING: gsettings was not found; skipping optional Nautilus terminal integration."
-  elif ! gsettings list-schemas 2>/dev/null | grep -Fxq "$schema"; then
+  elif ! available_schemas="$(gsettings list-schemas 2>/dev/null)"; then
+    echo "WARNING: Failed to list GSettings schemas; skipping optional Nautilus terminal integration."
+  elif ! grep -Fxq "$schema" <<< "$available_schemas"; then
     echo "WARNING: Nautilus Open Any Terminal GSettings schema was not found; skipping optional Kitty integration."
   elif ! gsettings set "$schema" terminal kitty; then
     echo "WARNING: Failed to set Kitty as the Nautilus terminal; continuing DMS setup."
