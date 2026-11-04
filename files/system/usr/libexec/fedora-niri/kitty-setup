@@ -6,8 +6,10 @@ paths_for() {
   printf '%s\n' '.config/kitty/kitty.conf'
 }
 
-kitty_added_file="$state_root/kitty-added-lines"
-kitty_created_file="$state_root/kitty-created-config"
+config_setup_init() {
+  kitty_added_file="$state_root/kitty-added-lines"
+  kitty_created_file="$state_root/kitty-created-config"
+}
 
 append_kitty_settings() {
   local conf="$home/.config/kitty/kitty.conf" line key
