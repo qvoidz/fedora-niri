@@ -133,6 +133,7 @@ modules:
       - install-clash-verge-rev.sh
       - set-sudoers-permissions.sh
       - enable-user-init-service.sh
+      - set-script-permissions.sh
 
   - type: systemd
     system:
