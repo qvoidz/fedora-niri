@@ -8,7 +8,7 @@
 - **Dux 组件**：Dux Shell、Dux GOP、Dux Search、Dux Calendar，以及 Quickshell、Matugen、Cliphist、Cava 等依赖；不安装 Dux Files。
 - **文件管理**：GNOME Files（Nautilus），右键菜单支持使用 Kitty 打开终端。
 - **Shell 与系统工具**：Fish、Just、XDG 用户目录工具、NetworkManager。
-- **字体**：CascadiaCode Nerd Font、JetBrainsMono Nerd Font、Google Noto Sans/Serif/Mono/CJK/Emoji。
+- **字体**：系统无衬线/衬线及中文字体使用 Google Noto；系统等宽字体和 Kitty 终端使用 JetBrainsMono Nerd Font。
 - **输入法**：Fcitx5、Rime 及雾凇拼音所需组件。用户级配置由 Just 手动部署。
 - **开发工具**：Neovim、Git、curl、ripgrep、fd、tree-sitter-cli、GCC、Make、unzip、Python Neovim 支持。
 - **应用**：Microsoft Edge、Visual Studio Code、Clash Verge Rev、微信、腾讯会议、Linux QQ、Steam、Lutris。
