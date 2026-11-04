@@ -5,7 +5,7 @@ source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
   # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  printf '%s\\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
 }
 
 before_uninstall() {
@@ -51,7 +51,7 @@ do_install() {
   touch "$state_root/greeter-configured"
   rm -f "$state_root/greeter-installing"
 
-  # Set the default DMS interface font without replacing the user's other settings.
+  # Apply the supplied DMS defaults while retaining settings unknown to this seed.
   local settings="$home/.config/dms/settings.json"
   [[ -f "$settings" ]] || {
     echo "ERROR: DMS settings.json was not found at $settings." >&2
@@ -66,29 +66,184 @@ import sys
 import tempfile
 
 settings_path = sys.argv[1]
+seed = json.loads(r'''{
+  "fontFamily": "Noto Sans",
+  "dmsWindowsFloatingSeeded": ["niri"],
+  "configVersion": 42,
+  "touchpadDisableOnExternalMouse": true,
+  "density": "comfortable",
+  "dockConfigs": [
+    {
+      "id": "dock",
+      "name": "Dock",
+      "enabled": true,
+      "screenPreferences": ["all"],
+      "showOnLastDisplay": true,
+      "position": 1,
+      "mode": "compact",
+      "middleClickAction": "close",
+      "taskbarAlign": "center",
+      "widgetExpansion": "popout",
+      "iconSize": 42,
+      "spacing": 16,
+      "itemSpacing": 16,
+      "margin": 8,
+      "bottomGap": 0,
+      "transparency": 1,
+      "followInterfaceStyle": true,
+      "autoHide": false,
+      "smartAutoHide": true,
+      "useOverlayLayer": false,
+      "editOnRightClick": false,
+      "showOnFullscreen": false,
+      "openOnOverview": false,
+      "groupByApp": false,
+      "separatePinnedAndRunningApps": true,
+      "restoreSpecialWorkspaceOnClick": false,
+      "isolateDisplays": false,
+      "indicatorStyle": "circle",
+      "borderEnabled": false,
+      "borderColor": "surfaceText",
+      "borderOpacity": 1,
+      "borderThickness": 1,
+      "launcherEnabled": true,
+      "launcherLogoMode": "apps",
+      "launcherLogoCustomPath": "",
+      "launcherLogoColorOverride": "",
+      "launcherLogoSizeOffset": 0,
+      "launcherLogoBrightness": 0.5,
+      "launcherLogoContrast": 1,
+      "maxVisibleApps": 0,
+      "maxVisibleRunningApps": 0,
+      "showOverflowBadge": true,
+      "showTrash": false,
+      "trashFileManager": "default",
+      "trashCustomCommand": "",
+      "magnification": false,
+      "magnificationScale": 130,
+      "magnificationProfile": "parabolic",
+      "magnificationExpand": false,
+      "order": [],
+      "widgets": [
+        {"id": "dock_launcher", "widgetId": "dockLauncher", "enabled": true},
+        {"id": "dock_apps", "widgetId": "appsDock", "enabled": true},
+        {"id": "dock_trash", "widgetId": "dockTrash", "enabled": true}
+      ]
+    }
+  ],
+  "builtInPluginSettings": {
+    "dms_qr_generator": {"trigger": "qrg"},
+    "dms_power": {"trigger": "pw"},
+    "dms_clipboard_search": {"trigger": "cb"},
+    "dms_settings_search": {"trigger": "?"}
+  },
+  "springBounce": 2
+}''')
 with open(settings_path, encoding="utf-8") as stream:
     settings = json.load(stream)
 if not isinstance(settings, dict):
     raise SystemExit("ERROR: Invalid DMS settings.json: the root value must be a JSON object")
 
+# The supplied seed values are authoritative. Existing unrelated DMS keys are kept.
+settings.update(seed)
 settings["fontFamily"] = "Noto Sans"
-directory = os.path.dirname(settings_path)
-mode = stat.S_IMODE(os.stat(settings_path).st_mode)
-fd, temporary_path = tempfile.mkstemp(prefix=".settings.json.", dir=directory)
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
-        json.dump(settings, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
-    os.chmod(temporary_path, mode)
-    os.replace(temporary_path, settings_path)
-except BaseException:
+
+def atomic_write(path, value):
+    directory = os.path.dirname(path)
+    mode = stat.S_IMODE(os.stat(path).st_mode)
+    fd, temporary_path = tempfile.mkstemp(prefix=".settings.json.", dir=directory)
     try:
-        os.unlink(temporary_path)
-    except FileNotFoundError:
-        pass
-    raise
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\\n")
+        os.chmod(temporary_path, mode)
+        os.replace(temporary_path, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_path)
+        except FileNotFoundError:
+            pass
+        raise
+
+atomic_write(settings_path, settings)
 PY
-  echo "DMS default interface font set to Noto Sans."
+  echo "DMS settings configured successfully."
+
+  # Apply the requested Niri pointing-device defaults after duxinstall deploys its configs.
+  python3 - "$home/.config/niri/config.kdl" "$home/.config/niri/dms/input.kdl" <<'PY'
+import os
+import re
+import stat
+import sys
+import tempfile
+
+def update_block(path, block_name, transform):
+    if not os.path.isfile(path):
+        raise SystemExit(f"ERROR: Required Niri configuration was not found: {path}")
+    with open(path, encoding="utf-8") as stream:
+        original = stream.read()
+
+    pattern = re.compile(
+        rf"(?ms)^(?P<indent>[ \\t]*){re.escape(block_name)}[ \\t]*\\{{(?P<body>.*?)^(?P=indent)\\}}"
+    )
+    match = pattern.search(original)
+    if not match:
+        raise SystemExit(f"ERROR: Could not find the {block_name} block in {path}")
+
+    body, changed = transform(match.group("body"), match.group("indent"))
+    if not changed:
+        return False
+    updated = original[:match.start("body")] + body + original[match.end("body"):]
+
+    mode = stat.S_IMODE(os.stat(path).st_mode)
+    fd, temporary_path = tempfile.mkstemp(prefix=".niri-config.", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(updated)
+        os.chmod(temporary_path, mode)
+        os.replace(temporary_path, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_path)
+        except FileNotFoundError:
+            pass
+        raise
+    return True
+
+def enable_trackpoint_off(body, block_indent):
+    active = re.search(r"(?m)^[ \\t]*off[ \\t]*(?:#.*)?$", body)
+    if active:
+        return body, False
+    uncommented, count = re.subn(
+        r"(?m)^([ \\t]*)//[ \\t]*off[ \\t]*$",
+        r"\\1off",
+        body,
+        count=1,
+    )
+    if count != 1:
+        raise SystemExit("ERROR: The commented '// off' option was not found inside the trackpoint block.")
+    return uncommented, True
+
+def set_touchpad_scroll_factor(body, block_indent):
+    indent = block_indent + "    "
+    match = re.search(r"(?m)^([ \\t]*)scroll-factor(?:[ \\t]+[^\\r\\n]*)?$", body)
+    if match:
+        replacement = match.group(1) + "scroll-factor 0.2"
+        updated = body[:match.start()] + replacement + body[match.end():]
+        return updated, updated != body
+
+    lines = body.splitlines(keepends=True)
+    insertion = indent + "scroll-factor 0.2\\n"
+    if lines and not lines[-1].endswith(("\\n", "\\r")):
+        lines[-1] += "\\n"
+    lines.append(insertion)
+    return "".join(lines), True
+
+config_path, input_path = sys.argv[1:3]
+update_block(config_path, "trackpoint", enable_trackpoint_off)
+update_block(input_path, "touchpad", set_touchpad_scroll_factor)
+PY
+  echo "Niri trackpoint disabled and touchpad scroll factor set to 0.2."
 
   # Use GNOME Files (Nautilus) with Kitty in its right-click terminal menu.
   local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
