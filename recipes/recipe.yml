@@ -16,6 +16,7 @@ modules:
         - monkeygold/nautilus-open-any-terminal
       files:
         - microsoft-edge.repo
+        - vscode.repo
     install:
       packages:
         # ── Desktop session ─────────────────────────────────────────────
@@ -90,6 +91,7 @@ modules:
 
         # ── Applications ─────────────────────────────────────────────────
         - microsoft-edge-stable
+        - code
 
         # ── Android container ────────────────────────────────────────────
         - waydroid
