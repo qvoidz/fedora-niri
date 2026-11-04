@@ -20,7 +20,8 @@ in_install=false
 
 paths_for() {
   case "$module" in
-    kitty) printf '%s\n' '.config/kitty/kitty.conf' ;;\n    fonts) printf '%s\n' '.config/DankMaterialShell/settings.json' ;;
+    kitty) printf '%s\n' '.config/kitty/kitty.conf' ;;
+    fonts) printf '%s\n' '.config/DankMaterialShell/settings.json' ;;
     fcitx)
       printf '%s\n' '.config/environment.d/90-fcitx5.conf' '.config/autostart/org.fcitx.Fcitx5.desktop' '.config/fcitx5/profile' '.local/share/fcitx5/rime'
       ;;
@@ -207,19 +208,19 @@ do_install() {
         return 1
       }
       mapfile -t choices < <(fc-list : family | sed 's/,.*//' | sed 's/^ *//;s/ *$//' | sort -u)
-      (("\${#choices[@]}" > 0)) || { echo "没有检测到可用字体。" >&2; return 1; }
+      (("${#choices[@]}" > 0)) || { echo "没有检测到可用字体。" >&2; return 1; }
       local selected=""
       if [[ "$yes" == true ]]; then
         for candidate in "Inter" "Inter Variable" "Noto Sans" "Adwaita Sans"; do
-          for available in "\${choices[@]}"; do
+          for available in "${choices[@]}"; do
             [[ "$available" == "$candidate" ]] && { selected="$available"; break 2; }
           done
         done
-        [[ -n "$selected" ]] || selected="\${choices[0]}"
+        [[ -n "$selected" ]] || selected="${choices[0]}"
       else
         echo "选择 DMS 使用的默认界面字体："
-        select selected in "\${choices[@]}"; do
-          [[ -n "\${selected:-}" ]] && break
+        select selected in "${choices[@]}"; do
+          [[ -n "${selected:-}" ]] && break
           echo "无效选择，请重试。"
         done
       fi
