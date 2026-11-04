@@ -9,9 +9,24 @@ paths_for() {
 do_install() {
   command -v git >/dev/null || { echo "ERROR: git is required but was not found." >&2; return 1; }
   mkdir -p "$home/.config"
-  rm -rf -- "$home/.config/nvim"
-  git clone --depth 1 https://github.com/LazyVim/starter "$home/.config/nvim"
-  rm -rf "$home/.config/nvim/.git"
+  if [[ -e "$home/.config/nvim" || -L "$home/.config/nvim" ]]; then
+    echo "Existing Neovim configuration found; preserving it."
+    return 0
+  fi
+
+  local temporary
+  temporary="$(mktemp -d "$home/.config/.nvim-setup.XXXXXX")"
+  if ! git clone --depth 1 https://github.com/LazyVim/starter "$temporary"; then
+    rm -rf -- "$temporary"
+    echo "ERROR: Failed to clone the LazyVim starter configuration." >&2
+    return 1
+  fi
+  rm -rf -- "$temporary/.git"
+  if ! mv -- "$temporary" "$home/.config/nvim"; then
+    rm -rf -- "$temporary"
+    echo "ERROR: Failed to install the Neovim configuration." >&2
+    return 1
+  fi
 }
 
 config_setup_main nvim "$@"
