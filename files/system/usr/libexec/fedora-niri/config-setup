@@ -82,10 +82,6 @@ config_setup_main() {
   }
 
   install_module() {
-    if [[ -f "$state_root/installed" && "$refresh" != true ]]; then
-      declare -F after_already_installed >/dev/null && after_already_installed
-      echo "$module is already installed."; return 0
-    fi
     [[ -f "$state_root/installed" ]] && was_installed=true
     if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
       echo "Recovering the previous incomplete $module operation before retrying..."
@@ -104,6 +100,10 @@ config_setup_main() {
       fi
       rm -rf "$transaction"
       rm -f "$state_root/failed" "$state_root/installing"
+    fi
+    if [[ -f "$state_root/installed" && "$refresh" != true ]]; then
+      declare -F after_already_installed >/dev/null && after_already_installed
+      echo "$module is already installed."; return 0
     fi
     mkdir -p "$state_root"; touch "$state_root/installing"; in_install=true
     trap rollback_install EXIT INT TERM HUP
@@ -134,11 +134,11 @@ config_setup_main() {
     if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
       echo "ERROR: No installation record found for $module."; return 1
     fi
-    if [[ -f "$state_root/installed" ]]; then
-      [[ -f "$manifest" ]] || {
+    [[ -f "$manifest" ]] || {
         echo "ERROR: Original configuration manifest is missing; refusing destructive uninstall." >&2
         return 1
       }
+    if [[ -f "$state_root/installed" ]]; then
       confirm_action "Uninstall $module and restore original configuration?" || { echo "Uninstallation cancelled."; return 0; }
     fi
     declare -F before_uninstall >/dev/null && before_uninstall
