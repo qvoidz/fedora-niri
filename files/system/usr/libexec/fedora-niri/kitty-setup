@@ -49,7 +49,7 @@ if os.path.isfile(state_path):
 else:
     state = {"config_existed": existed, "fields": {}}
     for key, value in settings.items():
-        matches = [line.rstrip("\\n") for line in lines
+        matches = [line.rstrip("\n") for line in lines
                    if (m := pattern.match(line)) and m.group(1) == key
                    and not line.lstrip().startswith("#")]
         state["fields"][key] = {"present": bool(matches), "lines": matches}
@@ -60,30 +60,12 @@ else:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(state, stream, ensure_ascii=False, indent=2)
-            stream.write("\\n")
+            stream.write("\n")
         os.replace(temp_state, state_path)
     except BaseException:
         try: os.unlink(temp_state)
         except FileNotFoundError: pass
         raise
-for key, value in settings.items():
-    matches = [line.rstrip("\n") for line in lines
-               if (m := pattern.match(line)) and m.group(1) == key
-               and not line.lstrip().startswith("#")]
-    state["fields"][key] = {"present": bool(matches), "lines": matches}
-
-# Persist the complete rollback data before touching kitty.conf.
-os.makedirs(os.path.dirname(state_path), exist_ok=True)
-fd, temp_state = tempfile.mkstemp(prefix=".kitty-fields.", dir=os.path.dirname(state_path))
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
-        json.dump(state, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
-    os.replace(temp_state, state_path)
-except BaseException:
-    try: os.unlink(temp_state)
-    except FileNotFoundError: pass
-    raise
 
 for key, value in settings.items():
     found = False
