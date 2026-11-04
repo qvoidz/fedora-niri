@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export DMS_PRIVESC=sudo
 source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
