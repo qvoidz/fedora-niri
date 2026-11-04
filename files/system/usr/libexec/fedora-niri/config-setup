@@ -150,7 +150,7 @@ config_setup_main() {
   confirm_action() {
     local prompt="$1" answer
     [[ "$yes" == true ]] && return 0
-    printf '%s [Y/n] ' "$prompt"; IFS= read -r answer || answer=""
+    tty_prompt "$prompt [Y/n] " answer || answer=""
     case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
   }
   uninstall_module() {
@@ -177,8 +177,7 @@ config_setup_main() {
     echo "1) Install"
     echo "2) Uninstall"
     echo "3) Cancel"
-    printf 'Choose an action for %s [1-3, Enter=Install]: ' "$module"
-    IFS= read -r answer || { echo; install_module; exit $?; }
+    tty_prompt "Choose an action for $module [1-3, Enter=Install]: " answer || { echo; install_module; exit $?; }
     case "${answer,,}" in
       ""|1|install|i) install_module; exit $? ;;
       2|uninstall|u) uninstall_module; exit $? ;;

@@ -21,8 +21,7 @@ ask() {
   if [[ "$yes_all" == true ]]; then
     return 0
   fi
-  printf '%s [Y/n] ' "$label"
-  IFS= read -r answer || answer=""
+  tty_prompt "$label [Y/n] " answer || answer=""
   case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
 }
 
@@ -33,8 +32,7 @@ ask_state_cleanup() {
     echo "PRESERVED: ~/.local/state (use --clean-state to remove user state data)."
     return 1
   }
-  printf 'Remove ALL user state data in %s, including Fedora Niri recovery records and upgrade backups? [y/N] ' "$state_home"
-  IFS= read -r answer || answer=""
+  tty_prompt "$(printf 'Remove ALL user state data in %s, including Fedora Niri recovery records and upgrade backups? [y/N] ' "$state_home")" answer || answer=""
   case "${answer,,}" in y|yes) return 0 ;; *) return 1 ;; esac
 }
 

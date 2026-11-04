@@ -17,3 +17,19 @@ setup_logging() {
   printf '===== %s started (PID %s) =====\n' "$script_name" "$$"
   trap 'status=$?; printf "ERROR: %s failed at line %s (exit code %s).\\nCommand: %s\\n" "$FEDORA_NIRI_SCRIPT_NAME" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 }
+
+# Print a prompt and read a reply directly from the controlling terminal,
+# bypassing the timestamped logging pipe: prompts have no trailing newline,
+# so they would otherwise be buffered until the next log line and merge with
+# the typed input, mangling both the on-screen layout and the log file.
+# Falls back to stdin/stdout when no terminal is available.
+tty_prompt() {
+  local prompt="$1"
+  if [[ -t 0 && -w /dev/tty ]]; then
+    printf '%s' "$prompt" > /dev/tty
+    IFS= read -r "${2:-REPLY}" < /dev/tty
+  else
+    printf '%s' "$prompt"
+    IFS= read -r "${2:-REPLY}"
+  fi
+}
