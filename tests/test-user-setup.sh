@@ -106,6 +106,8 @@ keyboard_line="$(grep -n -m1 '^Name=keyboard-us$' "$profile" | cut -d: -f1)"
 grep -Fqx 'GTK_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
 grep -Fqx 'QT_IM_MODULE=fcitx' "$fcitx_home/.config/environment.d/90-fcitx5.conf"
 grep -Fqx 'AltTriggerKeys=' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'TriggerKeys=Control+space' "$fcitx_home/.config/fcitx5/config"
+grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
 [[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
 
 HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
