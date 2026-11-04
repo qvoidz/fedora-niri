@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Niri
 Comment=A scrollable-tiling Wayland compositor
-Exec=env LANG=zh_CN.UTF-8 niri-session
+Exec=/usr/libexec/fedora-niri/niri-session-launcher
 Type=Application
 DesktopNames=niri
