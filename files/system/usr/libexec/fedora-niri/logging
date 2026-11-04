@@ -14,6 +14,6 @@ setup_logging() {
     printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line"
   done | tee -a "$FEDORA_NIRI_LOG_FILE") 2>&1
   printf 'Log file: %s\n' "$FEDORA_NIRI_LOG_FILE"
-  printf '===== %s started (PID %s) =====\n' "$script_name" "$"
+  printf '===== %s started (PID %s) =====\n' "$script_name" "$$"
   trap 'status=$?; printf "ERROR: %s failed at line %s (exit code %s).\\nCommand: %s\\n" "$FEDORA_NIRI_SCRIPT_NAME" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 }
