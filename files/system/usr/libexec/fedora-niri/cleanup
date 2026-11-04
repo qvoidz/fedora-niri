@@ -85,7 +85,7 @@ if [[ "$remove_user_flatpaks" == true ]]; then
       cleanup_errors+=("Flatpak allowlist parsing")
     else
       mapfile -t preserved_flatpaks < <(
-        printf '%s\\n' "$flatpak_allowlist" |
+        printf '%s\n' "$flatpak_allowlist" |
           sed 's#//.*$##' |
           sed '/^[[:space:]]*$/d'
       )
@@ -101,7 +101,7 @@ if [[ "$remove_user_flatpaks" == true ]]; then
       }
 
       remove_flatpaks_by_scope() {
-        local scope="$1" app_id removed=0
+        local scope="$1" app_id
         local -a installed_flatpaks=()
         mapfile -t installed_flatpaks < <(flatpak list "--$scope" --app --columns=application)
         for app_id in "${installed_flatpaks[@]}"; do
@@ -148,8 +148,8 @@ if [[ "$remove_user_flatpaks" == true ]]; then
     fi
   fi
 
-  remove_paths "$HOME/.local/share/flatpak"
 fi
+
 if [[ "$remove_config" == true ]]; then
   remove_paths \
     "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" \
