@@ -13,7 +13,6 @@ modules:
         - duxlabs/dms
         - duxlabs/dux-repo
         - yalter/niri-git
-        - monkeygold/nautilus-open-any-terminal
       files:
         - microsoft-edge.repo
         - vscode.repo
@@ -47,9 +46,7 @@ modules:
         - cups-pk-helper
         - khal
 
-        # ── File manager and terminal integration ───────────────────────
-        - nautilus
-        - nautilus-open-any-terminal
+        # ── Terminal ────────────────────────────────────────────────────
         - kf6-kimageformats
         - kitty
 
