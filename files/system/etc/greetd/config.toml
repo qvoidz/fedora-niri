@@ -1,0 +1,7 @@
+[terminal]
+vt = 1
+
+[default_session]
+user = "greeter"
+source_profile = false
+command = "env LANG=zh_CN.UTF-8 dms-greeter --command niri"
