@@ -35,6 +35,27 @@ assert_content() {
   }
 }
 
+# A failed first install must restore the original file and remain recoverable.
+initial_home="$test_root/initial-home"
+initial_state="$test_root/initial-state"
+mkdir -p "$initial_home/.config/demo"
+printf 'initial-original\n' > "$initial_home/.config/demo/value"
+set +e
+HOME="$initial_home" XDG_STATE_HOME="$initial_state" CONTENT=broken FAIL_INSTALL=1 bash "$module" --yes
+status=$?
+set -e
+[[ "$status" -eq 42 ]] || {
+  echo "Expected failed initial install exit code 42, got $status" >&2
+  exit 1
+}
+[[ "$(cat "$initial_home/.config/demo/value")" == "initial-original" ]]
+initial_record="$initial_state/fedora-niri/config-setup/demo"
+[[ -f "$initial_record/failed" && -f "$initial_record/manifest" ]]
+HOME="$initial_home" XDG_STATE_HOME="$initial_state" CONTENT=retried bash "$module" --yes
+[[ "$(cat "$initial_home/.config/demo/value")" == "retried" ]]
+HOME="$initial_home" XDG_STATE_HOME="$initial_state" bash "$module" --uninstall --yes
+[[ "$(cat "$initial_home/.config/demo/value")" == "initial-original" ]]
+
 # First install must preserve the original user configuration.
 CONTENT=installed bash "$module" --yes
 assert_content installed
