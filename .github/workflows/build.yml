@@ -36,6 +36,15 @@ jobs:
           ref: master
           path: .upstream/dux-shell
 
+      - name: Validate shell script syntax
+        run: |
+          set -euo pipefail
+          find files/system/usr/libexec/fedora-niri files/scripts -type f -print0 |
+            while IFS= read -r -d '' script; do
+              bash -n "$script"
+              printf 'Validated: %s\\n' "$script"
+            done
+
       - name: Set up Go from upstream go.mod
         uses: actions/setup-go@v5
         with:
