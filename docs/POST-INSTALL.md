@@ -17,7 +17,7 @@
 | `just nvim-setup` | 管理 LazyVim Starter |
 | `just user-dirs` | 固定英文 XDG 用户目录 |
 | `just cleanup` | 逐项选择要清理的用户数据 |
-| `just cleanup -y` | 自动确认并删除所有清理类别 |
+| `just cleanup -- -y` | 自动确认并删除所有清理类别 |
 
 配置安装会先备份模块管理的目标；卸载时删除目标当前内容并恢复备份。`fonts-setup` 仅修改 `~/.config/DankMaterialShell/settings.json` 中的 `fontFamily`，不会修改 `monoFontFamily` 或 Kitty 配置；卸载时恢复原始 DMS 设置文件。DMS 在启动 duxinstall 前备份 Niri、Quickshell 和 DMS 配置目录。请注意，卸载会恢复这些目录的安装前快照，安装后在这些目录里新增的个人修改也会被覆盖。
 
