@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+source /usr/libexec/fedora-niri/logging
+setup_logging set-sudoers-permissions
 file=/etc/sudoers.d/99-wheel-nopasswd
 [[ -f "$file" ]] || { echo "ERROR: Missing sudoers drop-in: $file" >&2; exit 1; }
 chmod 0440 "$file"
