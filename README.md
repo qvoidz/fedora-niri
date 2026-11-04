@@ -11,7 +11,7 @@
 - **字体**：CascadiaCode Nerd Font、JetBrainsMono Nerd Font、Google Noto Sans/Serif/Mono/CJK/Emoji。
 - **输入法**：Fcitx5、Rime 及雾凇拼音所需组件。用户级配置由 Just 手动部署。
 - **开发工具**：Neovim、Git、curl、ripgrep、fd、tree-sitter-cli、GCC、Make、unzip、Python Neovim 支持。
-- **应用**：Microsoft Edge、Visual Studio Code、Clash Verge Rev、微信、腾讯会议、Linux QQ、Steam、Lutris。
+- **应用**：Microsoft Edge、Clash Verge Rev、微信、腾讯会议、Linux QQ、Steam、Lutris。
 - **Android**：Waydroid（只预装容器，不自动初始化 Android 镜像）。
 - **虚拟化**：QEMU/KVM、libvirt、virt-manager、virt-install、OVMF 和 swtpm。
 
@@ -98,7 +98,6 @@ sudo virsh net-start default
 ## 应用来源与更新
 
 - 微信、腾讯会议、Linux QQ、Steam、Lutris：系统级 Flathub 应用。
-- Visual Studio Code：Microsoft 官方 RPM 仓库。
 - Microsoft Edge：Microsoft DNF 仓库。
 - Clash Verge Rev：从官方 GitHub Release 下载 RPM，安装前校验 SHA-256。
 - Dux、Niri、Nautilus 终端扩展：通过各自 COPR 仓库安装。
