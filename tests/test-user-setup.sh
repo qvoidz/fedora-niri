@@ -110,6 +110,9 @@ HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH
 
 profile="$fcitx_home/.config/fcitx5/profile"
 echo "Checking generated Fcitx profile defaults and Rime ordering..."
+echo "--- generated profile: $profile ---"
+cat "$profile"
+set -x
 grep -Fqx 'DefaultIM=keyboard-us' "$profile"
 grep -Fqx 'Default Layout=us' "$profile"
 rime_line="$(grep -n -m1 '^Name=rime$' "$profile" | cut -d: -f1)"
