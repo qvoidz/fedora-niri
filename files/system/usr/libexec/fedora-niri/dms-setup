@@ -10,7 +10,7 @@ paths_for() {
 
 before_uninstall() {
   command -v dms-greeter >/dev/null || {
-    echo "未找到 dms-greeter，无法撤销 Greeter 配置。" >&2
+    echo "ERROR: dms-greeter was not found; cannot undo Greeter configuration." >&2
     return 1
   }
   dms-greeter uninstall --yes
@@ -29,7 +29,7 @@ rollback_install_extra() {
     if command -v dms-greeter >/dev/null && dms-greeter uninstall --yes; then
       rm -f "$state_root/greeter-installing" "$state_root/greeter-configured"
     else
-      echo "警告：DMS Greeter 回滚失败，请手动运行 dms-greeter uninstall。" >&2
+      echo "ERROR: DMS Greeter rollback failed. Run dms-greeter uninstall manually." >&2
       result=1
     fi
   fi
@@ -38,14 +38,14 @@ rollback_install_extra() {
 }
 
 do_install() {
-  command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
+  command -v duxinstall >/dev/null || { echo "ERROR: duxinstall was not found." >&2; return 1; }
 
   # Configure Dux components; this does not install system packages.
   duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y
 
   # On Fedora Atomic/bootc, the package is already in the image.
   # Run the post-deployment Greeter setup as the normal user.
-  command -v dms-greeter >/dev/null || { echo "未找到 dms-greeter；请确认 dux-greeter 已加入系统镜像。" >&2; return 1; }
+  command -v dms-greeter >/dev/null || { echo "ERROR: dms-greeter was not found. Ensure dux-greeter is included in the system image." >&2; return 1; }
   touch "$state_root/greeter-installing"
   dms-greeter install --yes
   touch "$state_root/greeter-configured"
@@ -54,10 +54,10 @@ do_install() {
   # Set the default DMS interface font without replacing the user's other settings.
   local settings="$home/.config/dms/settings.json"
   [[ -f "$settings" ]] || {
-    echo "未找到 DMS settings.json（$settings）；DMS 配置可能未生成默认文件。" >&2
+    echo "ERROR: DMS settings.json was not found at $settings." >&2
     return 1
   }
-  command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
+  command -v python3 >/dev/null || { echo "ERROR: python3 is required but was not found." >&2; return 1; }
   python3 - "$settings" <<'PY'
 import json
 import os
@@ -69,7 +69,7 @@ settings_path = sys.argv[1]
 with open(settings_path, encoding="utf-8") as stream:
     settings = json.load(stream)
 if not isinstance(settings, dict):
-    raise SystemExit("DMS settings.json 格式错误：根节点必须是 JSON 对象")
+    raise SystemExit("ERROR: Invalid DMS settings.json: the root value must be a JSON object")
 
 settings["fontFamily"] = "Noto Sans"
 directory = os.path.dirname(settings_path)
@@ -88,12 +88,12 @@ except BaseException:
         pass
     raise
 PY
-  echo "已将 DMS 默认界面字体设置为：Noto Sans"
+  echo "DMS default interface font set to Noto Sans."
 
   # Use GNOME Files (Nautilus) with Kitty in its right-click terminal menu.
   local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
   if ! gsettings list-schemas | grep -Fxq "$schema"; then
-    echo "未找到 Nautilus Open Any Terminal 的 GSettings schema。" >&2
+    echo "ERROR: Nautilus Open Any Terminal GSettings schema was not found." >&2
     return 1
   fi
   gsettings set "$schema" terminal kitty
