@@ -169,7 +169,7 @@ start_fcitx() {
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
-    echo "Restarting Fcitx5 to load the updated profile..."
+    echo "Reloading Fcitx5 configuration..."
     fcitx5-remote -r
   else
     echo "Starting Fcitx5..."
