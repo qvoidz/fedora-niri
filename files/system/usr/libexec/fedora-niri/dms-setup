@@ -4,7 +4,7 @@ source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
   # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.config/DankMaterialShell' '.local/share/dms' '.local/state/dms' '.cache/dms'
 }
 
 before_uninstall() {
@@ -17,7 +17,7 @@ after_uninstall() {
 
 do_install() {
   command -v duxinstall >/dev/null || { echo "未找到 duxinstall。" >&2; return 1; }
-  duxinstall -c niri -t kitty -y
+  duxinstall -c niri -t kitty --replace-configs niri,kitty -y
 }
 
 config_setup_main dms "$@"
