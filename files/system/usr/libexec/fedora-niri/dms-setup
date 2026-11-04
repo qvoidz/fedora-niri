@@ -1,71 +1,62 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-export DMS_PRIVESC=sudo
 source /usr/libexec/fedora-niri/config-setup
 
 paths_for() {
-  # Only paths owned by DMS/duxinstall; never snapshot the entire user systemd directory.
-  printf '%s\n' '.config/niri' '.config/quickshell' '.config/kitty' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+  printf '%s\n' '.config/dms' '.local/share/dms' '.local/state/dms' '.cache/dms'
+}
+
+restore_greetd_config() {
+  local original="$state_root/greetd-config.toml.original"
+  if [[ -f "$original" ]]; then
+    sudo install -m 0644 "$original" /etc/greetd/config.toml
+    rm -f "$original"
+  fi
 }
 
 before_uninstall() {
-  command -v dms-greeter >/dev/null || {
-    echo "ERROR: dms-greeter was not found; cannot undo Greeter configuration." >&2
+  if command -v dms-greeter >/dev/null 2>&1; then
+    dms-greeter uninstall --yes
+  else
+    echo "ERROR: dms-greeter is unavailable; cannot safely undo its system configuration." >&2
     return 1
-  }
-  dms-greeter uninstall --yes
-  systemctl --user disable --now dms.service 2>/dev/null || true
+  fi
 }
 
 after_uninstall() {
-  systemctl --user daemon-reload 2>/dev/null || true
+  restore_greetd_config
+  systemctl --user disable --now dms.service 2>/dev/null || true
 }
 
-# Greeter changes system-level files and permissions outside the user backup.
-# Undo those changes as part of config-setup's failed-install rollback.
 rollback_install_extra() {
   local result=0
   if [[ -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ]]; then
-    if command -v dms-greeter >/dev/null && dms-greeter uninstall --yes; then
-      rm -f "$state_root/greeter-installing" "$state_root/greeter-configured"
-    else
-      echo "ERROR: DMS Greeter rollback failed. Run dms-greeter uninstall manually." >&2
-      result=1
-    fi
+    dms-greeter uninstall --yes || result=1
   fi
+  restore_greetd_config || result=1
   restore || result=1
   return "$result"
 }
 
-do_install() {
-  command -v duxinstall >/dev/null || { echo "ERROR: duxinstall was not found." >&2; return 1; }
-
-  # Configure Dux components; this does not install system packages.
-  duxinstall -c niri -t kitty --all-features --exclude-deps dux-files --replace-configs niri,kitty -y
-
-  # On Fedora Atomic/bootc, the package is already in the image.
-  # Run the post-deployment Greeter setup as the normal user.
-  command -v dms-greeter >/dev/null || { echo "ERROR: dms-greeter was not found. Ensure dux-greeter is included in the system image." >&2; return 1; }
-  touch "$state_root/greeter-installing"
-  dms-greeter install --yes
-  touch "$state_root/greeter-configured"
-  rm -f "$state_root/greeter-installing"
-
-  # Fedora's /etc/profile.d/lang.sh downgrades CJK locales on Linux VTs.
-  # greetd sources /etc/profile before running this command, so restore the
-  # desktop locale at the command boundary after that profile has run.
-  sudo python3 - <<'PY'
-import os
-import re
-import stat
-import tempfile
-
-path = "/etc/greetd/config.toml"
+configure_greetd_locale() {
+  local config=/etc/greetd/config.toml
+  [[ -f "$config" ]] || {
+    echo "ERROR: DMS Greeter did not create $config." >&2
+    return 1
+  }
+  if grep -q 'LANG=zh_CN.UTF-8' "$config"; then
+    echo "greetd Chinese locale is already configured."
+    return 0
+  fi
+  [[ -f "$state_root/greetd-config.toml.original" ]] ||
+    sudo cp -a "$config" "$state_root/greetd-config.toml.original"
+  sudo python3 - "$config" <<'PY'
+import os, re, stat, sys, tempfile
+path = sys.argv[1]
 with open(path, encoding="utf-8") as stream:
     lines = stream.readlines()
-
 section = None
-updated = False
+changed = False
 for index, line in enumerate(lines):
     header = re.match(r"^\s*\[([^]]+)\]\s*(?:#.*)?$", line)
     if header:
@@ -73,218 +64,18 @@ for index, line in enumerate(lines):
         continue
     if section != "default_session":
         continue
-    match = re.match(r'^(\s*command\s*=\s*")([^"]*)(".*)  # Apply the supplied DMS defaults while retaining settings unknown to this seed.
-  local settings="$home/.config/dms/settings.json"
-  [[ -f "$settings" ]] || {
-    echo "ERROR: DMS settings.json was not found at $settings." >&2
-    return 1
-  }
-  command -v python3 >/dev/null || { echo "ERROR: python3 is required but was not found." >&2; return 1; }
-  python3 - "$settings" <<'PY'
-import json
-import os
-import stat
-import sys
-import tempfile
-
-settings_path = sys.argv[1]
-seed = json.loads(r'''{
-  "fontFamily": "Noto Sans",
-  "dmsWindowsFloatingSeeded": ["niri"],
-  "configVersion": 42,
-  "touchpadDisableOnExternalMouse": true,
-  "density": "comfortable",
-  "dockConfigs": [
-    {
-      "id": "dock",
-      "name": "Dock",
-      "enabled": true,
-      "screenPreferences": ["all"],
-      "showOnLastDisplay": true,
-      "position": 1,
-      "mode": "compact",
-      "middleClickAction": "close",
-      "taskbarAlign": "center",
-      "widgetExpansion": "popout",
-      "iconSize": 42,
-      "spacing": 16,
-      "itemSpacing": 16,
-      "margin": 8,
-      "bottomGap": 0,
-      "transparency": 1,
-      "followInterfaceStyle": true,
-      "autoHide": false,
-      "smartAutoHide": true,
-      "useOverlayLayer": false,
-      "editOnRightClick": false,
-      "showOnFullscreen": false,
-      "openOnOverview": false,
-      "groupByApp": false,
-      "separatePinnedAndRunningApps": true,
-      "restoreSpecialWorkspaceOnClick": false,
-      "isolateDisplays": false,
-      "indicatorStyle": "circle",
-      "borderEnabled": false,
-      "borderColor": "surfaceText",
-      "borderOpacity": 1,
-      "borderThickness": 1,
-      "launcherEnabled": true,
-      "launcherLogoMode": "apps",
-      "launcherLogoCustomPath": "",
-      "launcherLogoColorOverride": "",
-      "launcherLogoSizeOffset": 0,
-      "launcherLogoBrightness": 0.5,
-      "launcherLogoContrast": 1,
-      "maxVisibleApps": 0,
-      "maxVisibleRunningApps": 0,
-      "showOverflowBadge": true,
-      "showTrash": false,
-      "trashFileManager": "default",
-      "trashCustomCommand": "",
-      "magnification": false,
-      "magnificationScale": 130,
-      "magnificationProfile": "parabolic",
-      "magnificationExpand": false,
-      "order": [],
-      "widgets": [
-        {"id": "dock_launcher", "widgetId": "dockLauncher", "enabled": true},
-        {"id": "dock_apps", "widgetId": "appsDock", "enabled": true},
-        {"id": "dock_trash", "widgetId": "dockTrash", "enabled": true}
-      ]
-    }
-  ],
-  "builtInPluginSettings": {
-    "dms_qr_generator": {"trigger": "qrg"},
-    "dms_power": {"trigger": "pw"},
-    "dms_clipboard_search": {"trigger": "cb"},
-    "dms_settings_search": {"trigger": "?"}
-  },
-  "springBounce": 2
-}''')
-with open(settings_path, encoding="utf-8") as stream:
-    settings = json.load(stream)
-if not isinstance(settings, dict):
-    raise SystemExit("ERROR: Invalid DMS settings.json: the root value must be a JSON object")
-
-# The supplied seed values are authoritative. Existing unrelated DMS keys are kept.
-settings.update(seed)
-settings["fontFamily"] = "Noto Sans"
-
-def atomic_write(path, value):
-    directory = os.path.dirname(path)
-    mode = stat.S_IMODE(os.stat(path).st_mode)
-    fd, temporary_path = tempfile.mkstemp(prefix=".settings.json.", dir=directory)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(value, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-        os.chmod(temporary_path, mode)
-        os.replace(temporary_path, path)
-    except BaseException:
-        try:
-            os.unlink(temporary_path)
-        except FileNotFoundError:
-            pass
-        raise
-
-atomic_write(settings_path, settings)
-PY
-  echo "DMS settings configured successfully."
-
-  # Apply the requested Niri pointing-device defaults after duxinstall deploys its configs.
-  python3 - "$home/.config/niri/config.kdl" "$home/.config/niri/dms/input.kdl" <<'PY'
-import os
-import re
-import stat
-import sys
-import tempfile
-
-def update_block(path, block_name, transform):
-    if not os.path.isfile(path):
-        raise SystemExit(f"ERROR: Required Niri configuration was not found: {path}")
-    with open(path, encoding="utf-8") as stream:
-        original = stream.read()
-
-    pattern = re.compile(
-        rf"(?ms)^(?P<indent>[ \t]*){re.escape(block_name)}[ \t]*\{{(?P<body>.*?)^(?P=indent)\}}"
-    )
-    match = pattern.search(original)
-    if not match:
-        raise SystemExit(f"ERROR: Could not find the {block_name} block in {path}")
-
-    body, changed = transform(match.group("body"), match.group("indent"))
-    if not changed:
-        return False
-    updated = original[:match.start("body")] + body + original[match.end("body"):]
-
-    mode = stat.S_IMODE(os.stat(path).st_mode)
-    fd, temporary_path = tempfile.mkstemp(prefix=".niri-config.", dir=os.path.dirname(path))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            stream.write(updated)
-        os.chmod(temporary_path, mode)
-        os.replace(temporary_path, path)
-    except BaseException:
-        try:
-            os.unlink(temporary_path)
-        except FileNotFoundError:
-            pass
-        raise
-    return True
-
-def enable_trackpoint_off(body, block_indent):
-    active = re.search(r"(?m)^[ \t]*off[ \t]*(?:#.*)?$", body)
-    if active:
-        return body, False
-    uncommented, count = re.subn(
-        r"(?m)^([ \t]*)//[ \t]*off[ \t]*$",
-        r"\1off",
-        body,
-        count=1,
-    )
-    if count != 1:
-        raise SystemExit("ERROR: The commented '// off' option was not found inside the trackpoint block.")
-    return uncommented, True
-
-def set_touchpad_scroll_factor(body, block_indent):
-    indent = block_indent + "    "
-    match = re.search(r"(?m)^([ \t]*)scroll-factor(?:[ \t]+[^\r\n]*)?$", body)
+    match = re.match(r'^(\s*command\s*=\s*")([^"]*)(".*)$', line.rstrip("\n"))
     if match:
-        replacement = match.group(1) + "scroll-factor 0.2"
-        updated = body[:match.start()] + replacement + body[match.end():]
-        return updated, updated != body
-
-    lines = body.splitlines(keepends=True)
-    insertion = indent + "scroll-factor 0.2\n"
-    if lines and not lines[-1].endswith(("\n", "\r")):
-        lines[-1] += "\n"
-    lines.append(insertion)
-    return "".join(lines), True
-
-config_path, input_path = sys.argv[1:3]
-update_block(config_path, "trackpoint", enable_trackpoint_off)
-update_block(input_path, "touchpad", set_touchpad_scroll_factor)
-PY
-  echo "Niri trackpoint disabled and touchpad scroll factor set to 0.2."
-
-}
-
-config_setup_main dms "$@"
-, line.rstrip("\n"))
-    if not match:
-        continue
-    command = match.group(2)
-    if not re.search(r"(?:^|\s)LANG=zh_CN\.UTF-8(?:\s|$)", command):
-        command = "env LANG=zh_CN.UTF-8 " + command
-    lines[index] = match.group(1) + command + match.group(3) + ("\n" if line.endswith("\n") else "")
-    updated = True
-    break
-
-if not updated:
-    raise SystemExit("ERROR: Could not find [default_session] command in /etc/greetd/config.toml")
-
+        command = match.group(2)
+        if not re.search(r"(?:^|\s)LANG=zh_CN\.UTF-8(?:\s|$)", command):
+            command = "env LANG=zh_CN.UTF-8 " + command
+        lines[index] = match.group(1) + command + match.group(3) + ("\n" if line.endswith("\n") else "")
+        changed = True
+        break
+if not changed:
+    raise SystemExit("ERROR: Could not find [default_session].command in greetd config.")
 mode = stat.S_IMODE(os.stat(path).st_mode)
-fd, temporary = tempfile.mkstemp(prefix=".config.toml.", dir=os.path.dirname(path))
+fd, temporary = tempfile.mkstemp(prefix=".greetd.", dir=os.path.dirname(path))
 try:
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.writelines(lines)
@@ -297,218 +88,59 @@ except BaseException:
         pass
     raise
 PY
-  echo "DMS Greeter locale fixed: LANG=zh_CN.UTF-8."
+}
 
-  # Apply the supplied DMS defaults while retaining settings unknown to this seed.
-  local settings="$home/.config/dms/settings.json"
-  [[ -f "$settings" ]] || {
-    echo "ERROR: DMS settings.json was not found at $settings." >&2
+do_install() {
+  command -v dms-greeter >/dev/null || {
+    echo "ERROR: dms-greeter is missing; ensure dux-greeter is installed in the image." >&2
     return 1
   }
-  command -v python3 >/dev/null || { echo "ERROR: python3 is required but was not found." >&2; return 1; }
-  python3 - "$settings" <<'PY'
-import json
-import os
-import stat
-import sys
-import tempfile
+  touch "$state_root/greeter-installing"
+  dms-greeter install --yes
+  touch "$state_root/greeter-configured"
+  rm -f "$state_root/greeter-installing"
+  configure_greetd_locale
 
-settings_path = sys.argv[1]
-seed = json.loads(r'''{
-  "fontFamily": "Noto Sans",
-  "dmsWindowsFloatingSeeded": ["niri"],
-  "configVersion": 42,
-  "touchpadDisableOnExternalMouse": true,
-  "density": "comfortable",
-  "dockConfigs": [
-    {
-      "id": "dock",
-      "name": "Dock",
-      "enabled": true,
-      "screenPreferences": ["all"],
-      "showOnLastDisplay": true,
-      "position": 1,
-      "mode": "compact",
-      "middleClickAction": "close",
-      "taskbarAlign": "center",
-      "widgetExpansion": "popout",
-      "iconSize": 42,
-      "spacing": 16,
-      "itemSpacing": 16,
-      "margin": 8,
-      "bottomGap": 0,
-      "transparency": 1,
-      "followInterfaceStyle": true,
-      "autoHide": false,
-      "smartAutoHide": true,
-      "useOverlayLayer": false,
-      "editOnRightClick": false,
-      "showOnFullscreen": false,
-      "openOnOverview": false,
-      "groupByApp": false,
-      "separatePinnedAndRunningApps": true,
-      "restoreSpecialWorkspaceOnClick": false,
-      "isolateDisplays": false,
-      "indicatorStyle": "circle",
-      "borderEnabled": false,
-      "borderColor": "surfaceText",
-      "borderOpacity": 1,
-      "borderThickness": 1,
-      "launcherEnabled": true,
-      "launcherLogoMode": "apps",
-      "launcherLogoCustomPath": "",
-      "launcherLogoColorOverride": "",
-      "launcherLogoSizeOffset": 0,
-      "launcherLogoBrightness": 0.5,
-      "launcherLogoContrast": 1,
-      "maxVisibleApps": 0,
-      "maxVisibleRunningApps": 0,
-      "showOverflowBadge": true,
-      "showTrash": false,
-      "trashFileManager": "default",
-      "trashCustomCommand": "",
-      "magnification": false,
-      "magnificationScale": 130,
-      "magnificationProfile": "parabolic",
-      "magnificationExpand": false,
-      "order": [],
-      "widgets": [
-        {"id": "dock_launcher", "widgetId": "dockLauncher", "enabled": true},
-        {"id": "dock_apps", "widgetId": "appsDock", "enabled": true},
-        {"id": "dock_trash", "widgetId": "dockTrash", "enabled": true}
-      ]
-    }
-  ],
-  "builtInPluginSettings": {
-    "dms_qr_generator": {"trigger": "qrg"},
-    "dms_power": {"trigger": "pw"},
-    "dms_clipboard_search": {"trigger": "cb"},
-    "dms_settings_search": {"trigger": "?"}
-  },
-  "springBounce": 2
-}''')
-with open(settings_path, encoding="utf-8") as stream:
+  local settings="$home/.config/dms/settings.json"
+  [[ -f "$settings" ]] || {
+    echo "ERROR: DMS settings.json was not created at $settings." >&2
+    return 1
+  }
+  python3 - "$settings" <<'PY'
+import json, os, stat, sys, tempfile
+path = sys.argv[1]
+with open(path, encoding="utf-8") as stream:
     settings = json.load(stream)
 if not isinstance(settings, dict):
-    raise SystemExit("ERROR: Invalid DMS settings.json: the root value must be a JSON object")
-
-# The supplied seed values are authoritative. Existing unrelated DMS keys are kept.
-settings.update(seed)
-settings["fontFamily"] = "Noto Sans"
-
-def atomic_write(path, value):
-    directory = os.path.dirname(path)
-    mode = stat.S_IMODE(os.stat(path).st_mode)
-    fd, temporary_path = tempfile.mkstemp(prefix=".settings.json.", dir=directory)
+    raise SystemExit("ERROR: DMS settings.json root must be a JSON object.")
+settings.update({
+    "showSeconds": False,
+    "showAmPm": False,
+    "padHours12Hour": False,
+    "showWeekNumber": False,
+    "clockDateFormat": "yyyy年 MMM dd日 dddd",
+    "clockFormat": "24h",
+    "useAutoLocation": True,
+})
+docks = settings.get("dockConfigs")
+if isinstance(docks, list) and docks and isinstance(docks[0], dict):
+    docks[0]["openOnOverview"] = True
+mode = stat.S_IMODE(os.stat(path).st_mode)
+fd, temporary = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(path))
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(settings, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+    os.chmod(temporary, mode)
+    os.replace(temporary, path)
+except BaseException:
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(value, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-        os.chmod(temporary_path, mode)
-        os.replace(temporary_path, path)
-    except BaseException:
-        try:
-            os.unlink(temporary_path)
-        except FileNotFoundError:
-            pass
-        raise
-
-atomic_write(settings_path, settings)
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+    raise
 PY
-  echo "DMS settings configured successfully."
-
-  # Apply the requested Niri pointing-device defaults after duxinstall deploys its configs.
-  python3 - "$home/.config/niri/config.kdl" "$home/.config/niri/dms/input.kdl" <<'PY'
-import os
-import re
-import stat
-import sys
-import tempfile
-
-def update_block(path, block_name, transform):
-    if not os.path.isfile(path):
-        raise SystemExit(f"ERROR: Required Niri configuration was not found: {path}")
-    with open(path, encoding="utf-8") as stream:
-        original = stream.read()
-
-    pattern = re.compile(
-        rf"(?ms)^(?P<indent>[ \t]*){re.escape(block_name)}[ \t]*\{{(?P<body>.*?)^(?P=indent)\}}"
-    )
-    match = pattern.search(original)
-    if not match:
-        raise SystemExit(f"ERROR: Could not find the {block_name} block in {path}")
-
-    body, changed = transform(match.group("body"), match.group("indent"))
-    if not changed:
-        return False
-    updated = original[:match.start("body")] + body + original[match.end("body"):]
-
-    mode = stat.S_IMODE(os.stat(path).st_mode)
-    fd, temporary_path = tempfile.mkstemp(prefix=".niri-config.", dir=os.path.dirname(path))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            stream.write(updated)
-        os.chmod(temporary_path, mode)
-        os.replace(temporary_path, path)
-    except BaseException:
-        try:
-            os.unlink(temporary_path)
-        except FileNotFoundError:
-            pass
-        raise
-    return True
-
-def enable_trackpoint_off(body, block_indent):
-    active = re.search(r"(?m)^[ \t]*off[ \t]*(?:#.*)?$", body)
-    if active:
-        return body, False
-    uncommented, count = re.subn(
-        r"(?m)^([ \t]*)//[ \t]*off[ \t]*$",
-        r"\1off",
-        body,
-        count=1,
-    )
-    if count != 1:
-        raise SystemExit("ERROR: The commented '// off' option was not found inside the trackpoint block.")
-    return uncommented, True
-
-def set_touchpad_scroll_factor(body, block_indent):
-    indent = block_indent + "    "
-    match = re.search(r"(?m)^([ \t]*)scroll-factor(?:[ \t]+[^\r\n]*)?$", body)
-    if match:
-        replacement = match.group(1) + "scroll-factor 0.2"
-        updated = body[:match.start()] + replacement + body[match.end():]
-        return updated, updated != body
-
-    lines = body.splitlines(keepends=True)
-    insertion = indent + "scroll-factor 0.2\n"
-    if lines and not lines[-1].endswith(("\n", "\r")):
-        lines[-1] += "\n"
-    lines.append(insertion)
-    return "".join(lines), True
-
-config_path, input_path = sys.argv[1:3]
-update_block(config_path, "trackpoint", enable_trackpoint_off)
-update_block(input_path, "touchpad", set_touchpad_scroll_factor)
-PY
-  echo "Niri trackpoint disabled and touchpad scroll factor set to 0.2."
-
-  # Optional integration: configure Nautilus Open Any Terminal when its schema is available.
-  # This must not fail the DMS setup; the core DMS/Niri configuration is independent of it.
-  local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
-  local available_schemas
-  if ! command -v gsettings >/dev/null 2>&1; then
-    echo "WARNING: gsettings was not found; skipping optional Nautilus terminal integration."
-  elif ! available_schemas="$(gsettings list-schemas 2>/dev/null)"; then
-    echo "WARNING: Failed to list GSettings schemas; skipping optional Nautilus terminal integration."
-  elif ! grep -Fxq "$schema" <<< "$available_schemas"; then
-    echo "WARNING: Nautilus Open Any Terminal GSettings schema was not found; skipping optional Kitty integration."
-  elif ! gsettings set "$schema" terminal kitty; then
-    echo "WARNING: Failed to set Kitty as the Nautilus terminal; continuing DMS setup."
-  else
-    echo "Nautilus terminal integration configured successfully."
-    command -v nautilus >/dev/null 2>&1 && nautilus -q 2>/dev/null || true
-  fi
+  echo "DMS settings and Greeter configuration completed successfully."
 }
 
 config_setup_main dms "$@"
