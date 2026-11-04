@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /usr/libexec/fedora-niri/config-setup
+paths_for() { printf '%s\n' '.config/niri' '.config/quickshell'; }
+do_install() {
+  command -v duxinstall >/dev/null || { echo "ERROR: duxinstall was not found." >&2; return 1; }
+  duxinstall -c niri --all-features --exclude-deps dux-files --replace-configs niri -y
+  python3 - "$home/.config/niri/config.kdl" "$home/.config/niri/dms/input.kdl" <<'PY'
+import os,re,stat,sys,tempfile
+def update(path,name,transform):
+    if not os.path.isfile(path): raise SystemExit("ERROR: Required Niri config was not found: "+path)
+    with open(path,encoding="utf-8") as f: original=f.read()
+    pattern=re.compile(r"(?ms)^(?P<indent>[ \t]*)"+re.escape(name)+r"[ \t]*\{(?P<body>.*?)^(?P=indent)\}")
+    match=pattern.search(original)
+    if not match: raise SystemExit("ERROR: Could not find "+name+" block in "+path)
+    body,changed=transform(match.group("body"),match.group("indent"))
+    if not changed: return
+    updated=original[:match.start("body")]+body+original[match.end("body"):]
+    fd,tmp=tempfile.mkstemp(prefix=".niri-config.",dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd,"w",encoding="utf-8") as f: f.write(updated)
+        os.chmod(tmp,stat.S_IMODE(os.stat(path).st_mode)); os.replace(tmp,path)
+    except BaseException:
+        try: os.unlink(tmp)
+        except FileNotFoundError: pass
+        raise
+def trackpoint(body,indent):
+    if re.search(r"(?m)^[ \t]*off[ \t]*(?:#.*)?$",body): return body,False
+    updated,count=re.subn(r"(?m)^([ \t]*)//[ \t]*off[ \t]*$",r"\1off",body,count=1)
+    if count!=1: raise SystemExit("ERROR: Expected commented '// off' option not found in trackpoint block.")
+    return updated,True
+def touchpad(body,indent):
+    match=re.search(r"(?m)^([ \t]*)scroll-factor(?:[ \t]+[^\r\n]*)?$",body)
+    if match:
+        updated=body[:match.start()]+match.group(1)+"scroll-factor 0.2"+body[match.end():]
+        return updated,updated!=body
+    lines=body.splitlines(keepends=True)
+    if lines and not lines[-1].endswith(("\n","\r")): lines[-1]+="\n"
+    lines.append(indent+"    scroll-factor 0.2\n")
+    return "".join(lines),True
+update(sys.argv[1],"trackpoint",trackpoint)
+update(sys.argv[2],"touchpad",touchpad)
+PY
+  echo "Niri configuration completed successfully."
+}
+config_setup_main niri "$@"
