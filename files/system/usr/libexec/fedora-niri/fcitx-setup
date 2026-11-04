@@ -186,7 +186,7 @@ update_rime_config() {
 }
 
 start_fcitx() {
-  local uid attempt available_methods
+  local uid attempt rime_addon
   uid="$(id -u)"
 
   if pgrep -u "$uid" -x fcitx5 >/dev/null 2>&1; then
@@ -219,12 +219,11 @@ start_fcitx() {
     return 1
   fi
 
-  available_methods="$(fcitx5-remote -l)" || {
-    echo "ERROR: Could not query the input methods registered by Fcitx5. Check $state_root/fcitx5.log." >&2
+  rime_addon="$(fcitx5-remote -m rime)" || {
+    echo "ERROR: Could not query the Rime addon from Fcitx5. Check $state_root/fcitx5.log." >&2
     return 1
   }
-  printf 'Fcitx5 input methods detected:\n%s\n' "$available_methods"
-  if ! grep -Fxq 'rime' <<< "$available_methods"; then
+  if [[ -z "$rime_addon" ]]; then
     echo "ERROR: The Rime engine is not registered by the running Fcitx5 daemon. The profile entry alone cannot install an engine." >&2
     rpm -ql fcitx5-rime > "$state_root/fcitx5-rime-files.log" 2>&1 || true
     if command -v fcitx5-diagnose >/dev/null 2>&1; then
@@ -234,6 +233,7 @@ start_fcitx() {
     return 1
   fi
 
+  printf 'Fcitx5 Rime addon detected: %s\n' "$rime_addon"
   current="$(fcitx5-remote -n)"
   if [[ "$current" != "keyboard-us" ]]; then
     echo "ERROR: Fcitx5 did not keep keyboard-us as the default input method (current: ${current:-unknown}). Check the Fcitx5 profile." >&2
