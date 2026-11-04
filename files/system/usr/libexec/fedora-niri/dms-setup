@@ -25,6 +25,45 @@ do_install() {
   command -v dms-greeter >/dev/null || { echo "未找到 dms-greeter；请确认 dux-greeter 已加入系统镜像。" >&2; return 1; }
   dms-greeter install --yes
 
+  # Set the default DMS interface font without replacing the user's other settings.
+  local settings="$home/.config/DankMaterialShell/settings.json"
+  [[ -f "$settings" ]] || {
+    echo "未找到 DMS settings.json；DMS 安装可能未生成默认配置。" >&2
+    return 1
+  }
+  command -v python3 >/dev/null || { echo "缺少 python3。" >&2; return 1; }
+  python3 - "$settings" <<'PY'
+import json
+import os
+import stat
+import sys
+import tempfile
+
+settings_path = sys.argv[1]
+with open(settings_path, encoding="utf-8") as stream:
+    settings = json.load(stream)
+if not isinstance(settings, dict):
+    raise SystemExit("DMS settings.json 格式错误：根节点必须是 JSON 对象")
+
+settings["fontFamily"] = "Noto Sans"
+directory = os.path.dirname(settings_path)
+mode = stat.S_IMODE(os.stat(settings_path).st_mode)
+fd, temporary_path = tempfile.mkstemp(prefix=".settings.json.", dir=directory)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(settings, stream, ensure_ascii=False, indent=2)
+        stream.write("\\n")
+    os.chmod(temporary_path, mode)
+    os.replace(temporary_path, settings_path)
+except BaseException:
+    try:
+        os.unlink(temporary_path)
+    except FileNotFoundError:
+        pass
+    raise
+PY
+  echo "已将 DMS 默认界面字体设置为：Noto Sans"
+
   # Use GNOME Files (Nautilus) with Kitty in its right-click terminal menu.
   local schema='com.github.stunkymonkey.nautilus-open-any-terminal'
   if ! gsettings list-schemas | grep -Fxq "$schema"; then
