@@ -3,13 +3,15 @@ set -Eeuo pipefail
 : "${HOME:?ERROR: HOME is not set}"
 trap 'status=$?; printf "ERROR: cleanup failed at line %s (exit code %s).\\nCommand: %s\\n" "${BASH_LINENO[0]:-$LINENO}" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
-if (($# > 1)) || { (($# == 1)) && [[ "$1" != "-y" ]]; }; then
-  echo "Usage: just cleanup [-y]" >&2
-  exit 2
-fi
-
 yes_all=false
-[[ "${1:-}" == "-y" ]] && yes_all=true
+clean_state=false
+for argument in "$@"; do
+  case "$argument" in
+    -y|--yes) yes_all=true ;;
+    --clean-state) clean_state=true ;;
+    *) echo "Usage: just cleanup [-y|--yes] [--clean-state]" >&2; exit 2 ;;
+  esac
+done
 cleanup_errors=()
 
 ask() {
@@ -20,6 +22,18 @@ ask() {
   printf '%s [Y/n] ' "$label"
   IFS= read -r answer || answer=""
   case "${answer,,}" in n|no) return 1 ;; *) return 0 ;; esac
+}
+
+ask_state_cleanup() {
+  local answer
+  [[ "$clean_state" == true ]] && return 0
+  [[ "$yes_all" == true ]] && {
+    echo "PRESERVED: ~/.local/state (use --clean-state to remove user state data)."
+    return 1
+  }
+  printf 'Remove user application state in ~/.local/state (Fedora Niri recovery records will be preserved)? [y/N] '
+  IFS= read -r answer || answer=""
+  case "${answer,,}" in y|yes) return 0 ;; *) return 1 ;; esac
 }
 
 run_module_uninstall() {
@@ -180,11 +194,14 @@ if ask "Remove extra system and user Flatpak applications not declared in the Bl
   remove_flatpaks || true
 fi
 
-if ask "Remove application data in ~/.local/share (excluding Flatpak data) and ~/.local/state (excluding Fedora Niri recovery records)?"; then
+if ask "Remove application data in ~/.local/share (excluding Flatpak data)?"; then
   if [[ -d "$HOME/.local/share" ]]; then
     find "$HOME/.local/share" -mindepth 1 -maxdepth 1 ! -name flatpak -exec rm -rf -- {} + ||
       { echo "ERROR: Failed to clean ~/.local/share application data." >&2; cleanup_errors+=("~/.local/share application data"); }
   fi
+fi
+
+if ask_state_cleanup; then
   if [[ -d "$HOME/.local/state" ]]; then
     find "$HOME/.local/state" -mindepth 1 -maxdepth 1 ! -name fedora-niri -exec rm -rf -- {} + ||
       { echo "ERROR: Failed to clean ~/.local/state application data." >&2; cleanup_errors+=("~/.local/state application data"); }
