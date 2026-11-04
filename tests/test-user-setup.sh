@@ -135,7 +135,9 @@ grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
 xdg_home="$test_root/xdg-home"
 xdg_config="$xdg_home/config"
 xdg_data="$xdg_home/data"
-mkdir -p "$xdg_home"
+mkdir -p "$xdg_home" "$xdg_config/fcitx5" "$xdg_config/environment.d"
+printf 'custom-original-profile\\n' > "$xdg_config/fcitx5/profile"
+printf 'CUSTOM_ENV=original\\n' > "$xdg_config/environment.d/90-fcitx5.conf"
 HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
   XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
@@ -148,8 +150,8 @@ HOME="$xdg_home" XDG_CONFIG_HOME="$xdg_config" XDG_DATA_HOME="$xdg_data" \
   XDG_STATE_HOME="$test_root/xdg-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" \
   bash "$fcitx_test" --uninstall --yes
-[[ ! -e "$xdg_config/fcitx5/profile" ]]
-[[ ! -e "$xdg_config/environment.d/90-fcitx5.conf" ]]
+[[ "$(cat "$xdg_config/fcitx5/profile")" == "custom-original-profile" ]]
+[[ "$(cat "$xdg_config/environment.d/90-fcitx5.conf")" == "CUSTOM_ENV=original" ]]
 [[ ! -e "$xdg_data/fcitx5/rime" ]]
 
 # Fcitx remains an explicit Just action; it must not be wired into login init.
