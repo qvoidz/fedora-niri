@@ -25,7 +25,7 @@ after_uninstall() {
 rollback_install_extra() {
   local result=0
   if [[ -e "$state_root/greeter-installing" || -e "$state_root/greeter-configured" ]]; then
-    if command -v dms-greeter >/dev/null && dms-greeter uninstall; then
+    if command -v dms-greeter >/dev/null && dms-greeter uninstall --yes; then
       rm -f "$state_root/greeter-installing" "$state_root/greeter-configured"
     else
       echo "警告：DMS Greeter 回滚失败，请手动运行 dms-greeter uninstall。" >&2
