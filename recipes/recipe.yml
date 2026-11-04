@@ -19,34 +19,15 @@ modules:
         - vscode.repo
     install:
       packages:
-        # Desktop and login manager
-        # Niri runtime dependencies (install from Fedora before the COPR-pinned Niri package)
-        - libseat
-        - xwayland-satellite
-        - repo: copr:copr.fedorainfracloud.org:yalter:niri-git
-          packages:
-            - niri
+        # ── Desktop session ─────────────────────────────────────────────
+        - greetd
         - dms
         - dux-greeter
-        - greetd
-        - kitty
-        - nautilus
-        - nautilus-open-any-terminal
-        - waydroid
-        - just
-        - xdg-user-dirs
-        - fish
-        - neovim
-        - git
-        - curl
-        - ripgrep
-        - fd-find
-        - tree-sitter-cli
-        - gcc
-        - make
-        - unzip
-        - python3-neovim
-        # Dux Shell required and optional components
+        - niri
+        - xwayland-satellite
+        - libseat
+
+        # ── Dux Shell and its components (Dux Files intentionally omitted) ─
         - quickshell
         - matugen
         - cliphist
@@ -57,13 +38,43 @@ modules:
         - cava
         - qt6-qtmultimedia
         - wtype
-        - qt6ct
         - accountsservice
         - power-profiles-daemon
         - cups-pk-helper
         - i2c-tools
+
+        # ── File manager and terminal integration ───────────────────────
+        - nautilus
+        - nautilus-open-any-terminal
+        - kitty
+
+        # ── System and session utilities ─────────────────────────────────
         - NetworkManager
-        # Input method and Rime
+        - qt6ct
+        - just
+        - xdg-user-dirs
+        - fish
+
+        # ── Fonts ────────────────────────────────────────────────────────
+        - google-noto-sans-fonts
+        - google-noto-serif-fonts
+        - google-noto-sans-mono-fonts
+        - google-noto-sans-cjk-fonts
+        - google-noto-emoji-color-fonts
+
+        # ── Development tools ────────────────────────────────────────────
+        - neovim
+        - git
+        - curl
+        - ripgrep
+        - fd-find
+        - tree-sitter-cli
+        - gcc
+        - make
+        - unzip
+        - python3-neovim
+
+        # ── Input method: Fcitx5 + Rime ──────────────────────────────────
         - fcitx5
         - fcitx5-gtk
         - fcitx5-qt
@@ -71,9 +82,14 @@ modules:
         - fcitx5-configtool
         - librime-lua
         - librime-octagram
-        # Applications
+
+        # ── Applications ─────────────────────────────────────────────────
         - microsoft-edge-stable
-        # QEMU/KVM virtualization stack
+
+        # ── Android container ────────────────────────────────────────────
+        - waydroid
+
+        # ── Virtualization: QEMU / KVM ───────────────────────────────────
         - qemu-kvm
         - libvirt-daemon-kvm
         - libvirt-daemon-config-network
@@ -105,7 +121,7 @@ modules:
       enabled:
         - greetd.service
         - waydroid-container.service
-        - virtqemud.service
+        - virtqemud.socket
         - virtnetworkd.socket
 
   - type: default-flatpaks
