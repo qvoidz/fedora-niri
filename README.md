@@ -23,7 +23,7 @@ sudo systemctl reboot
 
 ## 用户配置（普通 just）
 
-镜像提供全局 Justfile，使用普通 `just`，不需要 `ujust` 或 `blujust`。登录会话加载全局 Justfile 后，运行：
+镜像提供全局 Justfile，使用普通 `just`，不需要 `ujust` 或 `blujust`。功能脚本集中在 `/usr/libexec/fedora-niri/`，全局 Justfile 位于 `/usr/share/fedora-niri/Justfile`。运行：
 
 ```bash
 just
@@ -34,9 +34,9 @@ just
 | 命令 | 用途 |
 | --- | --- |
 | `just dms-setup` | 运行 `duxinstall -c niri -t kitty -y` 配置 DMS/Niri |
-| `just kitty-setup` | 部署 Kitty 配置（Fish shell、透明度及字体配置片段） |
+| `just kitty-setup` | 管理 Kitty 配置（Fish shell、透明度） |
 | `just fcitx-setup` | 部署 Fcitx5 自动启动、会话环境变量和雾凇拼音 |
-| `just fonts-setup` | 从已安装字体中选择 Kitty 使用的字体 |
+| `just fonts-setup` | 从已安装字体中选择 DMS 默认界面字体 |
 | `just nvim-setup` | 安装 LazyVim 官方 Starter |
 | `just user-dirs` | 将 XDG 文档、下载、图片等标准目录固定为英文名称 |
 | `just cleanup` | 按类别清理当前用户配置、缓存、应用数据、个人文件和用户级 Flatpak |
@@ -45,7 +45,7 @@ just
 
 ### cleanup 注意事项
 
-`just cleanup` 是**破坏性操作**：必须输入 `RESET` 确认，并会删除当前用户 HOME 中的全部内容，包括文档、下载、图片、隐藏配置、浏览器数据、SSH/GPG 密钥和各配置模块的备份。它不会删除系统镜像、RPM/Flatpak 软件包、系统服务或其他用户的数据。执行前请自行备份；执行后建议注销并重新登录。
+`just cleanup` 会逐项询问要删除的用户配置、缓存、应用数据、XDG 目录、个人文件和用户级 Flatpak；每项直接回车默认为确认删除，输入 `n` 保留该项。`just cleanup -y` 会直接执行全部清理。该操作可能删除 HOME 中几乎所有个人数据和密钥，且不可撤销；执行前务必备份。系统级 Flatpak、RPM、系统镜像和其他用户的数据不受影响。
 
 ### 英文用户目录
 
