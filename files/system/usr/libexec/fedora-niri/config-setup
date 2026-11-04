@@ -94,7 +94,14 @@ config_setup_main() {
     fi
     mkdir -p "$state_root"; touch "$state_root/installing"; in_install=true
     trap rollback_install EXIT INT TERM HUP
-    if [[ "$was_installed" == true ]]; then snapshot_to "$transaction"; else snapshot_to "$state_root"; fi
+    if [[ "$was_installed" == true ]]; then
+      snapshot_to "$transaction"
+    else
+      snapshot_to "$state_root/initial-snapshot"
+      mv -- "$state_root/initial-snapshot/backup" "$backup"
+      mv -- "$state_root/initial-snapshot/manifest" "$manifest"
+      rmdir -- "$state_root/initial-snapshot"
+    fi
     do_install
     [[ "$was_installed" == true ]] || touch "$state_root/installed"
     rm -f "$state_root/installing" "$state_root/failed"
