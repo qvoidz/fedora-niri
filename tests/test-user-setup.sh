@@ -78,7 +78,20 @@ MOCK
 chmod +x "$mock_bin/fcitx5" "$mock_bin/fcitx5-remote" "$mock_bin/pgrep"
 
 fcitx_home="$test_root/fcitx-home"
-mkdir -p "$fcitx_home"
+mkdir -p "$fcitx_home/.config/fcitx5"
+cat > "$fcitx_home/.config/fcitx5/config" <<'CONFIG'
+[Hotkey]
+AltTriggerKeys=Shift_L
+TriggerKeys=Control+space
+
+[Behavior]
+ActiveByDefault=True
+CONFIG
+cat > "$fcitx_home/.config/fcitx5/profile" <<'PROFILE'
+[Groups/0]
+Name=Original
+DefaultIM=keyboard-us
+PROFILE
 fcitx_test="$test_root/fcitx-setup"
 sed "s|^source /usr/libexec/fedora-niri/config-setup$|source \"$config_setup\"|" "$fcitx_source" > "$fcitx_test"
 HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
@@ -97,8 +110,9 @@ grep -Fqx 'AltTriggerKeys=' "$fcitx_home/.config/fcitx5/config"
 
 HOME="$fcitx_home" XDG_STATE_HOME="$test_root/fcitx-state" PATH="$mock_bin:$PATH" \
   FCITX_RUNNING="$FCITX_RUNNING" FCITX_CURRENT="$FCITX_CURRENT" bash "$fcitx_test" --uninstall --yes
-[[ ! -e "$fcitx_home/.config/fcitx5/profile" ]]
-[[ ! -e "$fcitx_home/.config/fcitx5/config" ]]
+grep -Fqx "AltTriggerKeys=Shift_L" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "TriggerKeys=Control+space" "$fcitx_home/.config/fcitx5/config"
+grep -Fqx "Name=Original" "$fcitx_home/.config/fcitx5/profile"
 [[ ! -e "$fcitx_home/.local/share/fcitx5/rime" ]]
 [[ ! -e "$fcitx_home/.config/environment.d/90-fcitx5.conf" ]]
 
