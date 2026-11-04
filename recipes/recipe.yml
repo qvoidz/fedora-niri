@@ -113,6 +113,13 @@ modules:
         - firefox
         - htop
         - nvtop
+        - kf6-kimageformats
+        - i2c-tools
+        - ddcutil
+        - khal
+        - fprintd
+        - dux-files
+        - adw-gtk3-theme
 
   - type: files
     files:
