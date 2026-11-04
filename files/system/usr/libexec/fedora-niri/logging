@@ -8,7 +8,8 @@ setup_logging() {
     return 1
   }
   FEDORA_NIRI_LOG_FILE="$log_root/$script_name.log"
-  export FEDORA_NIRI_LOG_FILE
+  FEDORA_NIRI_SCRIPT_NAME="$script_name"
+  export FEDORA_NIRI_LOG_FILE FEDORA_NIRI_SCRIPT_NAME
   exec > >(while IFS= read -r line || [[ -n "$line" ]]; do
     printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line"
   done | tee -a "$FEDORA_NIRI_LOG_FILE") 2>&1
