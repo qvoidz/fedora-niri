@@ -1,3 +1,56 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-exec bash /usr/libexec/fedora-niri/config-setup kitty "$@"
+source /usr/libexec/fedora-niri/config-setup
+
+paths_for() {
+  printf '%s\n' '.config/kitty/kitty.conf'
+}
+
+kitty_added_file="$state_root/kitty-added-lines"
+kitty_created_file="$state_root/kitty-created-config"
+
+append_kitty_settings() {
+  local conf="$home/.config/kitty/kitty.conf" line key
+  mkdir -p "$(dirname "$conf")"
+  [[ -e "$conf" ]] || touch "$conf"
+  : > "$kitty_added_file"
+  for line in "$@"; do
+    key="${line%% *}"
+    if grep -Eq "^[[:space:]]*${key}([[:space:]]|$)" "$conf"; then
+      continue
+    fi
+    printf '%s\n' "$line" >> "$conf"
+    printf '%s\n' "$line" >> "$kitty_added_file"
+  done
+}
+
+remove_kitty_settings() {
+  local conf="$home/.config/kitty/kitty.conf" line tmp
+  [[ -f "$kitty_added_file" ]] || { echo "未找到 Kitty 配置变更记录；保留现有文件。"; return 0; }
+  if [[ -f "$conf" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      tmp="$(mktemp)"
+      awk -v target="$line" 'BEGIN { removed=0 } $0 == target && !removed { removed=1; next } { print }' "$conf" > "$tmp"
+      if cmp -s "$conf" "$tmp"; then
+        echo "检测到用户已修改或删除配置行，保留：$line" >&2
+      else
+        cat "$tmp" > "$conf"
+      fi
+      rm -f "$tmp"
+    done < "$kitty_added_file"
+    if [[ -f "$kitty_created_file" && ! -s "$conf" ]]; then rm -f "$conf"; fi
+  fi
+}
+
+rollback_install_extra() {
+  remove_kitty_settings
+}
+
+do_install() {
+  local conf="$home/.config/kitty/kitty.conf"
+  [[ -e "$conf" ]] || touch "$kitty_created_file"
+  append_kitty_settings "shell /usr/bin/fish" "background_opacity 0.8"
+}
+
+config_setup_main kitty "$@"
