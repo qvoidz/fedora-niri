@@ -10,9 +10,10 @@ modules:
   - type: dnf
     repos:
       copr:
-        - avengemedia/dms
-        - avengemedia/danklinux
+        - duxlabs/dms
+        - duxlabs/dux-repo
         - yalter/niri-git
+        - monkeygold/nautilus-open-any-terminal
       files:
         - microsoft-edge.repo
         - vscode.repo
@@ -26,9 +27,11 @@ modules:
           packages:
             - niri
         - dms
-        - dms-greeter
+        - dux-greeter
         - greetd
         - kitty
+        - nautilus
+        - nautilus-open-any-terminal
         - just
         - xdg-user-dirs
         - fish
@@ -42,13 +45,19 @@ modules:
         - make
         - unzip
         - python3-neovim
-        # Global multilingual font coverage
-        - google-noto-fonts-all
-        # DMS optional feature providers
-        - danksearch
-        - dgop
+        # Dux Shell required and optional components
+        - quickshell
+        - matugen
+        - cliphist
+        - wl-clipboard
+        - dux-search
+        - dux-calendar
+        - dux-gop
         - cava
         - qt6-qtmultimedia
+        - wtype
+        - qt6ct
+        - accountsservice
         - power-profiles-daemon
         - cups-pk-helper
         - i2c-tools
