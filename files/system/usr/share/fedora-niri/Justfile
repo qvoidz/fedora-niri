@@ -1,11 +1,15 @@
-# Global Justfile for the Fedora Niri image.
-# JUST_JUSTFILE points here so every user can run plain "just".
-
+# Global Justfile for Fedora Niri.
 default:
     @just --list
 
+init:
+    exec bash /usr/libexec/fedora-niri/init
+
 dms-setup yes="":
     exec bash /usr/libexec/fedora-niri/dms-setup {{yes}}
+
+niri-setup yes="":
+    exec bash /usr/libexec/fedora-niri/niri-setup {{yes}}
 
 kitty-setup yes="":
     exec bash /usr/libexec/fedora-niri/kitty-setup {{yes}}
@@ -13,12 +17,8 @@ kitty-setup yes="":
 fcitx-setup yes="":
     exec bash /usr/libexec/fedora-niri/fcitx-setup {{yes}}
 
-
 nvim-setup yes="":
     exec bash /usr/libexec/fedora-niri/nvim-setup {{yes}}
 
 cleanup yes="":
     exec bash /usr/libexec/fedora-niri/cleanup {{yes}}
-
-user-dirs yes="":
-    exec bash /usr/libexec/fedora-niri/user-dirs {{yes}}
