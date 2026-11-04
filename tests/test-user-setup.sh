@@ -63,11 +63,10 @@ set -Eeuo pipefail
 case "${1:-}" in
   -e) rm -f -- "$FCITX_RUNNING" ;;
   -r) : ;;
-  -l)
-    if [[ -n "${FCITX_METHODS:-}" ]]; then
-      printf '%s\n' "$FCITX_METHODS"
-    else
-      printf 'rime\nkeyboard-us\n'
+  -m)
+    [[ "${2:-}" == rime ]] || exit 91
+    if [[ -z "${FCITX_METHODS:-}" || " ${FCITX_METHODS} " == *" rime "* ]]; then
+      printf 'fcitx-rime\n'
     fi
     ;;
   -s)
@@ -125,7 +124,7 @@ grep -Fqx 'TriggerKeys=Control+space' "$fcitx_home/.config/fcitx5/config"
 grep -Fqx 'ActiveByDefault=True' "$fcitx_home/.config/fcitx5/config"
 [[ -f "$fcitx_home/.local/share/fcitx5/rime/.git/HEAD" ]]
 [[ -s "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log" ]]
-grep -Fq 'Fcitx5 input methods detected:' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
+grep -Fq 'Fcitx5 Rime addon detected: fcitx-rime' "$test_root/fcitx-state/fedora-niri/logs/fcitx-setup.log"
 
 echo "Checking Fcitx uninstall and original configuration restoration..."
 HOME="$fcitx_home" XDG_CONFIG_HOME="$fcitx_home/.config" XDG_DATA_HOME="$fcitx_home/.local/share" \
