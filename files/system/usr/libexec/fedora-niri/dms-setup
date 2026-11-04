@@ -131,8 +131,9 @@ settings.update({
     "useAutoLocation": True,
 })
 docks = settings.get("dockConfigs")
-if isinstance(docks, list) and docks and isinstance(docks[0], dict):
-    docks[0]["openOnOverview"] = True
+if not isinstance(docks, list) or not docks or not isinstance(docks[0], dict):
+    raise SystemExit("ERROR: DMS settings.json does not contain a valid dockConfigs[0] object.")
+docks[0]["openOnOverview"] = True
 mode = stat.S_IMODE(os.stat(path).st_mode)
 fd, temporary = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(path))
 try:
