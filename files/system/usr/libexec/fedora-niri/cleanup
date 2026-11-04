@@ -68,21 +68,88 @@ user_dirs=(
 )
 
 if [[ "$remove_user_flatpaks" == true ]]; then
-  if [[ -d "$HOME/.local/share/flatpak" ]]; then
-    if command -v flatpak >/dev/null 2>&1; then
-      if ! flatpak uninstall --user --all --delete-data --assumeyes; then
-        echo "ERROR: Failed to uninstall user Flatpak applications." >&2
-        cleanup_errors+=("用户级 Flatpak 应用")
-      fi
-    else
-      echo "WARNING: flatpak command not found; skipping Flatpak uninstall and continuing file cleanup."
-    fi
+  flatpak_config="/usr/share/bluebuild/default-flatpaks/configuration.yml"
+
+  if ! command -v flatpak >/dev/null 2>&1; then
+    echo "WARNING: flatpak command not found; skipping Flatpak cleanup."
+  elif [[ ! -r "$flatpak_config" ]]; then
+    echo "ERROR: BlueBuild Flatpak configuration not found: $flatpak_config" >&2
+    echo "ERROR: Refusing to remove Flatpaks because the recipe allowlist cannot be verified." >&2
+    cleanup_errors+=("Flatpak allowlist configuration")
+  elif ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: yq command not found; cannot read the BlueBuild Flatpak allowlist." >&2
+    cleanup_errors+=("Flatpak allowlist parser (yq)")
   else
-    echo "SKIPPED (no user Flatpak installation found): $HOME/.local/share/flatpak"
+    mapfile -t preserved_flatpaks < <(
+      yq -r '.system.install[]?, .user.install[]?' "$flatpak_config" |
+        sed 's#//.*$##' |
+        sed '/^[[:space:]]*$/d'
+    )
+
+    if (("${PIPESTATUS[0]:-0}" != 0)); then
+      echo "ERROR: Failed to read BlueBuild Flatpak allowlist: $flatpak_config" >&2
+      cleanup_errors+=("Flatpak allowlist parsing")
+    else
+      is_preserved_flatpak() {
+        local candidate="$1" configured
+        candidate="${candidate%%//*}"
+        for configured in "${preserved_flatpaks[@]}"; do
+          configured="${configured%%//*}"
+          [[ "$candidate" == "$configured" ]] && return 0
+        done
+        return 1
+      }
+
+      remove_flatpaks_by_scope() {
+        local scope="$1" app_id removed=0
+        local -a installed_flatpaks=()
+        mapfile -t installed_flatpaks < <(flatpak list "--$scope" --app --columns=application)
+        for app_id in "${installed_flatpaks[@]}"; do
+          [[ -n "$app_id" ]] || continue
+          if is_preserved_flatpak "$app_id"; then
+            printf 'PRESERVED (declared in BlueBuild recipe): %s [%s]\n' "$app_id" "$scope"
+            continue
+          fi
+
+          printf 'Removing extra Flatpak: %s [%s]\n' "$app_id" "$scope"
+          if [[ "$scope" == "system" ]]; then
+            if sudo flatpak uninstall --system --delete-data --assumeyes "$app_id"; then
+              printf 'Removed: %s [system Flatpak]\n' "$app_id"
+            else
+              echo "ERROR: Failed to remove system Flatpak: $app_id" >&2
+              cleanup_errors+=("$app_id [system Flatpak]")
+            fi
+          else
+            if flatpak uninstall --user --delete-data --assumeyes "$app_id"; then
+              printf 'Removed: %s [user Flatpak]\n' "$app_id"
+            else
+              echo "ERROR: Failed to remove user Flatpak: $app_id" >&2
+              cleanup_errors+=("$app_id [user Flatpak]")
+            fi
+          fi
+        done
+      }
+
+      remove_flatpaks_by_scope system
+      remove_flatpaks_by_scope user
+
+      # Remove only stale per-app data for applications not declared in the recipe.
+      if [[ -d "$HOME/.var/app" ]]; then
+        for app_data in "$HOME/.var/app"/*; do
+          [[ -e "$app_data" || -L "$app_data" ]] || continue
+          app_id="${app_data##*/}"
+          if is_preserved_flatpak "$app_id"; then
+            printf 'PRESERVED app data (declared in BlueBuild recipe): %s\n' "$app_id"
+          else
+            remove_paths "$app_data"
+          fi
+        done
+      fi
+    fi
   fi
+
   remove_paths "$HOME/.local/share/flatpak"
 fi
-
 if [[ "$remove_config" == true ]]; then
   remove_paths \
     "$HOME/.config" "$HOME/.bashrc" "$HOME/.bash_profile" \
