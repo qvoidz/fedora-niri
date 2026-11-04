@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source /usr/libexec/fedora-niri/logging
+source "$(dirname "${BASH_SOURCE[0]}")/logging"
 
 config_setup_main() {
   module="${1:?missing module}"; shift
