@@ -9,7 +9,7 @@ config_setup_main() {
   while (($#)); do
     case "$1" in
       -y|--yes) yes=true ;;
-      *) echo "未知参数：$1" >&2; return 2 ;;
+      *) echo "ERROR: Unknown argument: $1" >&2; return 2 ;;
     esac
     shift
   done
@@ -18,6 +18,13 @@ config_setup_main() {
   backup="$state_root/backup"
   manifest="$state_root/manifest"
   in_install=false
+  config_setup_error() {
+    local status="$1" line="$2" command="$3"
+    trap - ERR
+    printf "ERROR: %s failed at line %s (exit code %s).\nCommand: %s\n" "$module" "$line" "$status" "$command" >&2
+    exit "$status"
+  }
+  trap 'config_setup_error "$?" "${BASH_LINENO[0]:-$LINENO}" "$BASH_COMMAND"' ERR
   if declare -F config_setup_init >/dev/null; then
     config_setup_init
   fi
@@ -96,11 +103,11 @@ config_setup_main() {
     local status=$?
     if [[ "$in_install" == true ]]; then
       trap - EXIT INT TERM HUP
-      echo "安装未正常完成，正在恢复安装前配置……" >&2
+      echo "Installation failed. Rolling back the original configuration..." >&2
       if declare -F rollback_install_extra >/dev/null; then
-        rollback_install_extra || echo "警告：模块回滚失败，记录仍保留在 $state_root" >&2
+        rollback_install_extra || echo "ERROR: Module rollback failed. Recovery data remains at $state_root" >&2
       else
-        restore || echo "警告：自动恢复失败，备份仍保留在 $backup" >&2
+        restore || echo "ERROR: Automatic rollback failed. Backup remains at $backup" >&2
       fi
       rm -rf -- "$state_root"/.snapshot.*
       rm -f "$state_root/installed" "$state_root/installing"
@@ -122,11 +129,11 @@ config_setup_main() {
       if declare -F after_already_installed >/dev/null; then
         after_already_installed
       fi
-      echo "该模块已安装。"
+      echo "$module is already installed."
       return 0
     fi
     if [[ -f "$state_root/failed" || -f "$state_root/installing" ]]; then
-      echo "发现上次未完成的配置操作，先执行模块回滚并清理旧状态。"
+      echo "Found an incomplete previous operation. Rolling back before retrying..."
       if declare -F rollback_install_extra >/dev/null; then
         rollback_install_extra
       else
@@ -134,7 +141,7 @@ config_setup_main() {
       fi
       rm -rf "$state_root"
     elif [[ -e "$state_root" ]]; then
-      echo "发现不完整的旧状态目录，正在恢复并清理。"
+      echo "Found incomplete state data. Restoring and cleaning it..."
       restore
       rm -rf "$state_root"
     fi
@@ -149,16 +156,16 @@ config_setup_main() {
     rm -f "$state_root/installing" "$state_root/failed"
     in_install=false
     trap - EXIT INT TERM HUP
-    echo "安装完成。"
+    echo "$module installation completed successfully."
   }
 
   uninstall_module() {
     if [[ ! -f "$state_root/installed" && ! -f "$state_root/failed" && ! -f "$state_root/installing" ]]; then
-      echo "没有找到该模块的安装记录。"
+      echo "ERROR: No installation record found for $module."
       return 1
     fi
     if [[ -f "$state_root/installed" && "$yes" != true ]]; then
-      confirm_action "确认卸载 $module 并恢复安装前配置？" || { echo "已取消。"; return 0; }
+      confirm_action "确认卸载 $module 并恢复安装前配置？" || { echo "Uninstallation cancelled."; return 0; }
     fi
     if declare -F before_uninstall >/dev/null; then
       before_uninstall
@@ -168,10 +175,10 @@ config_setup_main() {
       after_uninstall
     fi
     rm -rf -- "$state_root"
-    echo "已恢复安装前配置。"
+    echo "$module uninstallation completed successfully. Previous configuration restored."
   }
 
-  echo "配置管理：$module"
+  echo "Managing configuration: $module"
   if [[ "$yes" == true ]]; then
     install_module
     exit $?
@@ -180,8 +187,8 @@ config_setup_main() {
     case "$action" in
       Install) install_module; break ;;
       Uninstall) uninstall_module; break ;;
-      Cancel) echo "已取消，未修改任何文件。"; exit 0 ;;
-      *) echo "无效选择，请重试。" ;;
+      Cancel) echo "Cancelled. No files were changed."; exit 0 ;;
+      *) echo "Invalid selection. Please try again." ;;
     esac
   done
 }
