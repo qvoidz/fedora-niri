@@ -56,7 +56,7 @@ jobs:
             done
 
       - name: Set up Go from upstream go.mod
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: .upstream/dux-shell/core/go.mod
           cache: false
